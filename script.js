@@ -14,7 +14,7 @@ async function loadData() {
     return;
   }
 
-  const spreadsheetId = '/d/1a0D1Xae8M7AXeVw3L7HVtSNhQLQ6DTmS44si0LLz1CA/'; // замени на свой
+  const spreadsheetId = '1a0D1Xae8M7AXeVw3L7HVtSNhQLQ6DTmS44si0LLz1CA'; // замени на свой
 
   const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
 
