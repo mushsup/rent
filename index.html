@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BikeRent — Личный кабинет</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>BikeRent</h1>
+      <p>Аренда велосипедов</p>
+    </header>
+
+    <section id="user-info">
+      <h2 id="full-name">Загрузка...</h2>
+      
+      <div class="bike-card">
+        <div id="bike-icon">🚲</div>
+        <div>
+          <h3 id="bike-model">—</h3>
+          <p id="tariff">Тариф: — ₽/неделя</p>
+        </div>
+      </div>
+
+      <div class="balance-card">
+        <h3>Баланс аренды</h3>
+        <p id="days-left">Осталось дней: —</p>
+        <p id="pay-until">Оплачено до: —</p>
+        <p id="debt" class="debt-hidden">Задолженность: — ₽</p>
+      </div>
+
+      <div class="comment">
+        <h4>Сообщение от BikeRent</h4>
+        <p id="client-comment">—</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
