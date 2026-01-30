@@ -61,7 +61,8 @@ async function loadData() {
     // Сегодняшняя дата
     const today = new Date(); // для теста можно new Date('2026-01-30')
 
-    // Находим последнюю дату платежа и сумму последнего платежа (столбец A и C, начиная с индекса 2)
+    // Находим последнюю дату платежа и сумму последнего платежа
+    // Только строки, где сумма оплаты > 0 (произведена оплата)
     let lastPaymentDate = null;
     let lastPaymentAmount = 0;
     let hasPayments = false;
@@ -71,12 +72,12 @@ async function loadData() {
       const paymentDate = parseDate(dateStr);
       const amount = parseFloat(rows[i][2]) || 0;
 
-      if (paymentDate && amount !== 0) {  // учитываем только строки с валидной датой и ненулевой суммой
+      if (paymentDate && amount > 0) {  // только положительные оплаты
         if (!lastPaymentDate || paymentDate > lastPaymentDate || 
             (paymentDate.getTime() === lastPaymentDate.getTime() && i > (lastPaymentDate.index || 0))) {
           lastPaymentDate = paymentDate;
           lastPaymentAmount = amount;
-          lastPaymentDate.index = i; // чтобы при равных датах брать последнюю строку
+          lastPaymentDate.index = i; // для равных дат берём нижнюю строку
         }
         hasPayments = true;
       }
@@ -99,7 +100,7 @@ async function loadData() {
       payUntilText = 'Оплачено вручную';
       lastPaymentText = 'Последний платеж: — (ручной баланс)';
     } else if (hasPayments && lastPaymentDate) {
-      // Авто-режим: от последней оплаты
+      // Авто-режим: от последней оплаты (только с amount > 0)
       const diffDays = Math.floor((today - lastPaymentDate) / (1000 * 60 * 60 * 24));
       remainingDays = 7 - diffDays;
 
@@ -107,13 +108,14 @@ async function loadData() {
       endDate.setDate(endDate.getDate() + 7);
       payUntilText = `Оплачено до: ${endDate.toLocaleDateString('ru-RU')}`;
 
+      // Всегда показываем дату платежа + сумму
       lastPaymentText = `Последний платеж: ${lastPaymentDate.toLocaleDateString('ru-RU')} (${lastPaymentAmount} zł)`;
 
       if (remainingDays < 0) {
         debt = Math.abs(remainingDays) * dailyRate;
       }
     } else {
-      // Нет платежей и нет ручного баланса
+      // Нет платежей с amount > 0
       remainingDays = 0;
       payUntilText = 'Нет оплат';
       lastPaymentText = 'Последний платеж: —';
