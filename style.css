@@ -7,3 +7,4 @@ header h1 { margin: 0; color: #2c7a2c; }
 .balance-card { background: #fff3e0; padding: 20px; border-radius: 10px; text-align: center; }
 .debt-hidden { color: red; font-weight: bold; background: #ffebee; padding: 10px; border-radius: 8px; }
 .comment { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; }
+.debt-hidden { display: none; }
