@@ -16,7 +16,7 @@ async function loadData() {
 
   const spreadsheetId = '1a0D1Xae8M7AXeVw3L7HVtSNhQLQ6DTmS44si0LLz1CA'; // замени на свой
 
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+  const csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vRvOQsNUxTTxlqKjxMtyUh7Rq5JbEtXRI8vnM8-h0XiOEz7vNvqbfkN9Xp49MQfkFqNRyB5fub1bKe5/pub?output=csv&gid=${gid}`;
 
   try {
     const response = await fetch(csvUrl);
