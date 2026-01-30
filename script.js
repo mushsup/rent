@@ -61,16 +61,22 @@ async function loadData() {
     // Сегодняшняя дата
     const today = new Date(); // для теста можно new Date('2026-01-30')
 
-    // Находим последнюю дату платежа (столбец A, начиная с индекса 2)
+    // Находим последнюю дату платежа и сумму последнего платежа (столбец A и C, начиная с индекса 2)
     let lastPaymentDate = null;
+    let lastPaymentAmount = 0;
     let hasPayments = false;
 
     for (let i = 2; i < rows.length; i++) {
       const dateStr = rows[i][0];
       const paymentDate = parseDate(dateStr);
-      if (paymentDate) {
-        if (!lastPaymentDate || paymentDate > lastPaymentDate) {
+      const amount = parseFloat(rows[i][2]) || 0;
+
+      if (paymentDate && amount !== 0) {  // учитываем только строки с валидной датой и ненулевой суммой
+        if (!lastPaymentDate || paymentDate > lastPaymentDate || 
+            (paymentDate.getTime() === lastPaymentDate.getTime() && i > (lastPaymentDate.index || 0))) {
           lastPaymentDate = paymentDate;
+          lastPaymentAmount = amount;
+          lastPaymentDate.index = i; // чтобы при равных датах брать последнюю строку
         }
         hasPayments = true;
       }
@@ -79,6 +85,7 @@ async function loadData() {
     let remainingDays = 0;
     let debt = 0;
     let payUntilText = '—';
+    let lastPaymentText = 'Последний платеж: —';
 
     const dailyRate = weeklyTariff / 7;
 
@@ -90,6 +97,7 @@ async function loadData() {
         debt = Math.abs(balance);
       }
       payUntilText = 'Оплачено вручную';
+      lastPaymentText = 'Последний платеж: — (ручной баланс)';
     } else if (hasPayments && lastPaymentDate) {
       // Авто-режим: от последней оплаты
       const diffDays = Math.floor((today - lastPaymentDate) / (1000 * 60 * 60 * 24));
@@ -99,6 +107,8 @@ async function loadData() {
       endDate.setDate(endDate.getDate() + 7);
       payUntilText = `Оплачено до: ${endDate.toLocaleDateString('ru-RU')}`;
 
+      lastPaymentText = `Последний платеж: ${lastPaymentDate.toLocaleDateString('ru-RU')} (${lastPaymentAmount} zł)`;
+
       if (remainingDays < 0) {
         debt = Math.abs(remainingDays) * dailyRate;
       }
@@ -106,11 +116,12 @@ async function loadData() {
       // Нет платежей и нет ручного баланса
       remainingDays = 0;
       payUntilText = 'Нет оплат';
+      lastPaymentText = 'Последний платеж: —';
     }
 
     // Отображаем
     document.getElementById('days-left').textContent = `Осталось дней: ${Math.max(remainingDays, 0)}`;
-    document.getElementById('pay-until').textContent = payUntilText;
+    document.getElementById('pay-until').textContent = `${lastPaymentText}\n${payUntilText}`;
 
     const debtEl = document.getElementById('debt');
     if (debt > 0) {
