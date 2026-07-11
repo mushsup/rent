@@ -53,6 +53,8 @@ Schema changes in `src/lib/migrations/` are incremental:
 4. `004_move_rental_terms_to_tenants.sql` moves recurring rental terms from bikes to tenants and removes `bikes.price`.
 5. `005_repair_zero_weekly_payments.sql` restores zero recurring payments from existing tenant payment history after the move.
 6. `006_add_payment_comments.sql` adds comments to expected and completed payments.
+7. `007_add_payment_terms_history.sql` preserves historical weekly rates and payment weekdays.
+8. `008_manage_payment_terms_rpc.sql` updates payment-term history without overlapping effective periods.
 
 `supabase_setup.sql` is an older bootstrap script and does not describe the current schema completely. Do not use it alone for a fresh environment: reconcile it with the migrations and the queries in `src/pages/admin/` before provisioning a new database. In particular, the current application also queries `credits`, `credit_transactions`, `bikes`, `is_archived`, and newer tenant fields.
 

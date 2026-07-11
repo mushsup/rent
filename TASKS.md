@@ -2,6 +2,7 @@
 
 ## Critical reliability
 
+- [~] [Qyxo](tasks/Qyxo.md) Improve operations, financial reliability, and performance
 - [ ] [Sonu](tasks/Sonu.md) Fix confirmed runtime failures in tenant deletion and dashboard fast payment
 - [ ] [Cowo](tasks/Cowo.md) Make tenant, payment, and bike state changes atomic
 

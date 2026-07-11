@@ -60,13 +60,30 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     const endDate = latestPayment && compareDates(latestPayment, nextPaymentKey) > 0
         ? toDateKey(latestPayment)
         : nextPaymentKey;
+    const terms = (tenant.payment_terms || [])
+        .map(term => ({
+            ...term,
+            weekly_payment: Number(term.weekly_payment) || 0,
+            payment_day: Number(term.payment_day) || paymentDay
+        }))
+        .sort((left, right) => compareDates(left.effective_from, right.effective_from));
+    const effectiveTerms = terms.length > 0 ? terms : [{
+        weekly_payment: getTenantWeeklyPayment(tenant),
+        payment_day: paymentDay,
+        effective_from: startDate,
+        effective_to: null
+    }];
 
     const expectedDates = new Set();
-    let expectedDate = getScheduledPaymentDate(startDate, paymentDay);
-    while (compareDates(expectedDate, endDate) <= 0) {
-        expectedDates.add(expectedDate);
-        expectedDate = toDateKey(addDays(toDate(expectedDate), 7));
-    }
+    effectiveTerms.forEach(term => {
+        const termStart = compareDates(term.effective_from, startDate) > 0 ? term.effective_from : startDate;
+        const termEnd = term.effective_to && compareDates(term.effective_to, endDate) < 0 ? term.effective_to : endDate;
+        let expectedDate = getScheduledPaymentDate(termStart, term.payment_day);
+        while (compareDates(expectedDate, termEnd) <= 0) {
+            expectedDates.add(expectedDate);
+            expectedDate = toDateKey(addDays(toDate(expectedDate), 7));
+        }
+    });
     // A manually moved current expected payment is still a real ledger event.
     expectedDates.add(nextPaymentKey);
 
@@ -82,14 +99,19 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
         }))
     ].sort((left, right) => compareDates(left.date, right.date) || left.sortOrder - right.sortOrder);
 
-    const weeklyAmount = getTenantWeeklyPayment(tenant);
     const expectedOverride = tenant.next_payment_amount != null ? Number(tenant.next_payment_amount) : null;
     let balance = 0;
     let balanceAtReference = 0;
     const referenceKey = toDateKey(referenceDate);
     const entries = events.map(event => {
+        const term = event.type === 'expected'
+            ? effectiveTerms.find(candidate => (
+                compareDates(event.date, candidate.effective_from) >= 0
+                && (!candidate.effective_to || compareDates(event.date, candidate.effective_to) <= 0)
+            )) || effectiveTerms[effectiveTerms.length - 1]
+            : null;
         const amount = event.type === 'expected'
-            ? (event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : weeklyAmount)
+            ? (event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : term.weekly_payment)
             : event.amount;
         const signedAmount = event.type === 'expected' ? amount : -amount;
         balance += signedAmount;

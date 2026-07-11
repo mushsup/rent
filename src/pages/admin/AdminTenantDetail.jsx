@@ -34,7 +34,7 @@ export default function AdminTenantDetail() {
         queryFn: async () => {
             const { data } = await supabase
                 .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, created_at, payments(id, amount, payment_date, comment, created_at), bikes(id, model, type, status, price)')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, created_at, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status, price)')
                 .eq('id', id)
                 .single();
 
@@ -70,6 +70,9 @@ export default function AdminTenantDetail() {
         e.preventDefault();
         const paymentDay = Number(editForm.payment_day) || DEFAULT_PAYMENT_DAY;
         const currentPaymentDay = Number(tenant.payment_day) || getPaymentDay(tenant.next_payment_date || new Date());
+        const weeklyPayment = Number(editForm.weekly_payment) || 0;
+        const paymentTermsChanged = weeklyPayment !== Number(tenant.weekly_payment || getTenantWeeklyPayment(tenant))
+            || paymentDay !== currentPaymentDay;
         const nextPaymentDate = paymentDay === currentPaymentDay
             ? tenant.next_payment_date || null
             : getNextPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
@@ -79,7 +82,7 @@ export default function AdminTenantDetail() {
                 name: editForm.name,
                 slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
                 bike_id: editForm.bike_id || null,
-                weekly_payment: Number(editForm.weekly_payment) || 0,
+                weekly_payment: weeklyPayment,
                 payment_day: paymentDay,
                 next_payment_date: nextPaymentDate,
                 deposit: Number(editForm.deposit) || 0,
@@ -88,6 +91,20 @@ export default function AdminTenantDetail() {
             .eq('id', id);
 
         if (!error) {
+            if (paymentTermsChanged) {
+                const { error: termsError } = await supabase.rpc('upsert_tenant_payment_terms', {
+                    p_tenant_id: tenant.id,
+                    p_weekly_payment: weeklyPayment,
+                    p_payment_day: paymentDay,
+                    p_effective_from: format(new Date(), 'yyyy-MM-dd')
+                });
+
+                if (termsError) {
+                    alert(termsError.message);
+                    return;
+                }
+            }
+
             if (tenant.bikes?.id !== editForm.bike_id) {
                 if (tenant.bikes?.id) {
                     await supabase.from('bikes').update({ status: 'available' }).eq('id', tenant.bikes.id);
