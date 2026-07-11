@@ -55,6 +55,7 @@ Schema changes in `src/lib/migrations/` are incremental:
 6. `006_add_payment_comments.sql` adds comments to expected and completed payments.
 7. `007_add_payment_terms_history.sql` preserves historical weekly rates and payment weekdays.
 8. `008_manage_payment_terms_rpc.sql` updates payment-term history without overlapping effective periods.
+9. `009_record_payment_rpc.sql` records a payment and advances the next scheduled date atomically.
 
 `supabase_setup.sql` is an older bootstrap script and does not describe the current schema completely. Do not use it alone for a fresh environment: reconcile it with the migrations and the queries in `src/pages/admin/` before provisioning a new database. In particular, the current application also queries `credits`, `credit_transactions`, `bikes`, `is_archived`, and newer tenant fields.
 

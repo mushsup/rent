@@ -15,7 +15,7 @@ export default function AdminBikes() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBike, setEditingBike] = useState(null);
 
-    const { data: bikes = [], isLoading: bikesLoading } = useQuery({
+    const { data: bikes = [], isLoading: bikesLoading, isError: bikesError } = useQuery({
         queryKey: ['bikes'],
         queryFn: async () => {
             const { data } = await supabase.from('bikes').select('id, model, type, status').order('model');
@@ -23,7 +23,7 @@ export default function AdminBikes() {
         }
     });
 
-    const { data: tenants = [], isLoading: tenantsLoading } = useQuery({
+    const { data: tenants = [], isLoading: tenantsLoading, isError: tenantsError } = useQuery({
         queryKey: ['tenants', 'bikes'],
         queryFn: async () => {
             const { data } = await supabase.from('tenants').select('id, name, bike_id');
@@ -32,6 +32,7 @@ export default function AdminBikes() {
     });
 
     const loading = bikesLoading || tenantsLoading;
+    const queryError = bikesError || tenantsError;
 
     const filteredAndSortedBikes = useMemo(() => {
         let result = [...bikes];
@@ -95,6 +96,11 @@ export default function AdminBikes() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4">
+                {queryError && (
+                    <div className="rounded-lg border border-red-300/50 bg-red-50/50 px-4 py-3 text-sm text-red-600 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-300">
+                        Не удалось загрузить данные велосипедов. Проверьте подключение к базе данных.
+                    </div>
+                )}
                 <div className="flex justify-between items-center gap-4">
                     <h1 className="text-2xl font-bold text-black dark:text-white">Велосипеды</h1>
                     <button

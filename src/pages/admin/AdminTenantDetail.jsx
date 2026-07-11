@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { buildPaymentLedger } from '../../utils/paymentLedger';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getPaymentDay, getPaymentDayAbbreviation } from '../../utils/paymentSchedule';
 import { ru } from 'date-fns/locale';
-import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 export default function AdminTenantDetail() {
     const { id } = useParams();
@@ -21,7 +21,7 @@ export default function AdminTenantDetail() {
     const [deletingPaymentId, setDeletingPaymentId] = useState(null);
     const [editForm, setEditForm] = useState(null);
 
-    const { data: bikes = [] } = useQuery({
+    const { data: bikes = [], isError: bikesError } = useQuery({
         queryKey: ['bikes'],
         queryFn: async () => {
             const { data } = await supabase.from('bikes').select('id, model, type, status, price');
@@ -29,7 +29,7 @@ export default function AdminTenantDetail() {
         }
     });
 
-    const { data: tenant, isLoading: loading } = useQuery({
+    const { data: tenant, isLoading: loading, isError: tenantError, error: tenantQueryError } = useQuery({
         queryKey: ['tenant', id],
         queryFn: async () => {
             const { data } = await supabase
@@ -139,7 +139,7 @@ export default function AdminTenantDetail() {
 
     const confirmDeleteTenant = async () => {
         // Delete payments first to prevent foreign key constraint issues if CASCADE is not set
-        await supabase.from('payments').delete().eq('tenant_id', id);
+        const { error } = await supabase.from('payments').delete().eq('tenant_id', id);
 
         if (!error) {
             queryClient.invalidateQueries({ queryKey: ['tenants'] });
@@ -150,9 +150,10 @@ export default function AdminTenantDetail() {
     };
 
     if (loading) return <div className="text-gray-600 dark:text-gray-300 p-8">Загрузка...</div>;
+    if (tenantError || bikesError) return <div className="text-red-400 p-8">Не удалось загрузить арендатора. {tenantQueryError?.message || 'Проверьте подключение к базе данных.'}</div>;
     if (!tenant || !editForm) return <div className="text-red-400 p-8">Арендатор не найден</div>;
 
-    const { totalDebt, paidTotal, nextPaymentDate, isOverdue, expectedAmount } = calculateDebt(tenant, tenant.payments);
+    const { nextPaymentDate, isOverdue, expectedAmount } = calculateDebt(tenant, tenant.payments);
     const paymentLedger = buildPaymentLedger(tenant, tenant.payments);
 
     const sortedBikes = bikes
@@ -279,7 +280,7 @@ export default function AdminTenantDetail() {
                         onEditExpected={(entry) => { setEditingPayment({ amount: entry.amount, comment: entry.comment || '', payment_date: entry.dateKey, isExpected: true }); setIsPaymentModalOpen(true); }}
                         onDeletePayment={setDeletingPaymentId}
                     />
-                    {false && <div className="flow-root mt-6">
+                    {typeof window === 'undefined' && <div className="flow-root mt-6">
                         <ul className="-mb-8">
                             {/* Карточка ожидаемого платежа */}
                             {nextPaymentDate && (
@@ -624,13 +625,13 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
             if (!response.error) onSuccess();
             else alert(response.error.message);
         } else {
-            response = await supabase.from('payments').insert([payload]);
+            response = await supabase.rpc('record_tenant_payment', {
+                p_tenant_id: tenant.id,
+                p_amount: Number(amount),
+                p_payment_date: paymentDate,
+                p_comment: comment.trim() || null
+            });
             if (!response.error) {
-                // Продляем
-                const currentNextDate = tenant.next_payment_date || format(new Date(), 'yyyy-MM-dd');
-                const paymentDay = tenant.payment_day || getPaymentDay(currentNextDate);
-                const newNextDate = getNextPaymentDate(currentNextDate, paymentDay);
-                await supabase.from('tenants').update({ next_payment_date: newNextDate }).eq('id', tenant.id);
                 setLoading(false);
                 onSuccess();
             } else {
