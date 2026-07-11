@@ -71,6 +71,18 @@ npm install
 npm run dev
 ```
 
+### Run locally for testing
+
+1. Use a current Node.js LTS release and install the dependencies with `npm install`.
+2. Create `.env` in the repository root with a Supabase project URL and anon/publishable key.
+3. Provision the current Supabase schema, including the tables listed above, migrations, RLS policies, at least one authenticated admin user, and optional test tenant/bike/payment data. The legacy `supabase_setup.sql` file is not sufficient by itself.
+4. Start Vite with `npm run dev` and open the URL printed in the terminal. With the configured base path, the usual address is `http://localhost:5173/rent/`.
+5. Test the public experience at `/rent/` and a tenant link at `/rent/#/<tenant-slug>`.
+6. Test the admin flow at `/rent/#/admin/login` using the Supabase authenticated user. Verify the dashboard, bike inventory, payments/credits, tenant detail, payment recording, bike assignment, archive, logout, and dark-mode toggle.
+7. Before submitting changes, run `npm run build`. Run `npm run lint` as well; the current repository has documented pre-existing lint failures in the audit baseline.
+
+Because the app uses `HashRouter`, route paths after the base path must include `#` during local testing. Changes to `.env` require restarting the Vite process.
+
 Available scripts:
 
 - `npm run dev` — start Vite with HMR.
