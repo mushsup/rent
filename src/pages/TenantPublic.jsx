@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Bike, Calendar, AlertCircle, TrendingDown, CheckCircle2 } from 'lucide-react';
-import { calculateDebt } from '../utils/calculateDebt';
+import { calculateDebt, getTenantWeeklyPayment } from '../utils/calculateDebt';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -17,7 +17,7 @@ export default function TenantPublic() {
         async function loadTenant() {
             const { data, error } = await supabase
                 .from('tenants')
-                .select('*, payments(*), bikes(*)')
+                .select('id, name, slug, weekly_payment, next_payment_date, next_payment_amount, admin_comment, payments(id, amount, payment_date), bikes(id, model, price)')
                 .eq('slug', slug)
                 .single();
 
@@ -85,7 +85,7 @@ export default function TenantPublic() {
                         </div>
                         <div className="text-left sm:text-right bg-gray-900/50 p-4 rounded-xl border border-gray-700 w-full sm:w-auto">
                             <div className="text-sm text-gray-400 mb-1">Ставка (в неделю)</div>
-                            <div className="text-2xl font-bold text-white">{tenant?.bikes?.price || 0} <span className="text-gray-400 text-lg">zł</span></div>
+                            <div className="text-2xl font-bold text-white">{getTenantWeeklyPayment(tenant)} <span className="text-gray-400 text-lg">zł</span></div>
                         </div>
                     </div>
                 </div>

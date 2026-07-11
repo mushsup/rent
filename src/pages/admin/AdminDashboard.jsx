@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Bike, Scooter, CalendarDays, ExternalLink, Filter, X, ChevronDown, DollarSign, Pencil, CheckCircle, MoreVertical, Coins, Wallet } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { calculateDebt } from '../../utils/calculateDebt';
+import { Plus, Search, Bike, Scooter, CalendarDays, ExternalLink, X, ChevronDown, DollarSign, Pencil, MoreVertical, Coins, Wallet } from 'lucide-react';
+import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
+import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getScheduledPaymentDate } from '../../utils/paymentSchedule';
 import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subDays, subMonths, subYears, subWeeks, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -35,36 +35,20 @@ export default function AdminDashboard() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
-    const [chartPeriod, setChartPeriod] = useState('week'); // day, week, month, year
+    const [chartPeriod, setChartPeriod] = useState('month'); // day, week, month, year
     const [statsTab, setStatsTab] = useState('percent'); // percent, amount
 
-    // Filters state
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'debt', 'paid'
+    // Archive visibility state
     const [showArchived, setShowArchived] = useState(false);
-    const filterRef = useRef(null);
 
     // Modals state
     const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
     const [showDebtGraph, setShowDebtGraph] = useState(false);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (filterRef.current && !filterRef.current.contains(event.target)) {
-                setIsFilterOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
     const { data: bikes = [] } = useQuery({
         queryKey: ['bikes'],
         queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('*');
+            const { data } = await supabase.from('bikes').select('id, model, type, status');
             return data || [];
         }
     });
@@ -78,22 +62,34 @@ export default function AdminDashboard() {
     });
 
     const { data: tenants = [], isLoading: loading } = useQuery({
-        queryKey: ['tenants'],
+        queryKey: ['tenants', 'dashboard'],
         queryFn: async () => {
-            const { data } = await supabase
+            const currentQuery = await supabase
+                .from('tenants')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, created_at, payments(id, amount, payment_date, created_at), bikes(id, model, type, status, price)')
+                .order('name');
+
+            if (!currentQuery.error) return currentQuery.data || [];
+
+            // Keep older Supabase projects usable until the rental-term migrations are applied.
+            const legacyQuery = await supabase
                 .from('tenants')
                 .select('*, payments(*), bikes(*)')
                 .order('name');
-            return data || [];
+
+            if (legacyQuery.error) throw legacyQuery.error;
+            return legacyQuery.data || [];
         }
     });
 
+    /*
     const handleFastPayment = async (e, tenant) => {
         e.stopPropagation();
         const toastId = toast.loading('Обработка платежа...');
-        const amount = tenant.bikes?.price || 0;
-        const currentNextDate = tenant.next_payment_date ? new Date(tenant.next_payment_date) : new Date();
-        const newNextDate = format(addDays(currentNextDate, 7), 'yyyy-MM-dd');
+        const amount = calculateDebt(tenant, tenant.payments).expectedAmount;
+        const currentNextDate = tenant.next_payment_date || format(new Date(), 'yyyy-MM-dd');
+        const paymentDay = tenant.payment_day || getPaymentDay(currentNextDate);
+        const newNextDate = getNextPaymentDate(currentNextDate, paymentDay);
 
         const { error } = await supabase.from('payments').insert([{
             tenant_id: tenant.id,
@@ -109,15 +105,17 @@ export default function AdminDashboard() {
             toast.error(error.message, { id: toastId });
         }
     };
+    */
 
-    const activeMonthlyRevenue = Math.round(tenants.reduce((sum, t) => sum + (t.is_archived ? 0 : (t.bikes?.price || 0)), 0) * 4.33);
+    const activeWeeklyRevenue = tenants.reduce((sum, t) => sum + (t.is_archived ? 0 : getTenantWeeklyPayment(t)), 0);
+    const activeMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
 
     const totalBikesCount = bikes.length || 1;
     const rentedBikesCount = bikes.filter(b => b.status === 'in_rent').length;
     const maintBikesCount = bikes.filter(b => b.status === 'maintenance').length;
     const availBikesCount = bikes.filter(b => b.status === 'available').length;
     
-    const potentialMonthlyRevenue = Math.round(bikes.reduce((sum, b) => sum + (b.price || 0), 0) * 4.33);
+    const potentialMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
     
     const processChartData = () => {
         let grouped = {};
@@ -166,7 +164,7 @@ export default function AdminDashboard() {
         const keysList = Object.keys(grouped).sort();
         if (keysList.length > 0) {
             const lastKey = keysList[keysList.length - 1];
-            const currentExpectedWeek = tenants.reduce((sum, t) => sum + (t.is_archived ? 0 : (t.bikes?.price || 0)), 0);
+            const currentExpectedWeek = activeWeeklyRevenue;
             if (chartPeriod === 'week') grouped[lastKey] = currentExpectedWeek;
             else if (chartPeriod === 'month') grouped[lastKey] = currentExpectedWeek * 4.33;
             else if (chartPeriod === 'year') grouped[lastKey] = currentExpectedWeek * 52;
@@ -213,11 +211,7 @@ export default function AdminDashboard() {
         if (!matchesSearch) return false;
 
         // filter by archived
-        if (!showArchived && t.is_archived) return false;
-
-        // filter by payment status
-        if (filterStatus === 'debt' && t.computedDebt <= 0) return false;
-        if (filterStatus === 'paid' && t.computedDebt > 0) return false;
+        if (showArchived ? !t.is_archived : t.is_archived) return false;
 
         return true;
     }).sort((a, b) => {
@@ -331,13 +325,13 @@ export default function AdminDashboard() {
                                     {(rentedBikesCount / totalBikesCount) < 0.25 ? (
                                         <><span>💀</span> Смерть в нищете</>
                                     ) : (rentedBikesCount / totalBikesCount) < 0.50 ? (
-                                        <><span>🤢</span> Всё плохо</>
+                                        <><span>😭</span> Всё плохо</>
                                     ) : (rentedBikesCount / totalBikesCount) < 0.70 ? (
-                                        <><span>💪</span> Ещё поднажми, петушок</>
+                                        <><span>😑</span> Трымаемся</>
                                     ) : (rentedBikesCount / totalBikesCount) < 0.90 ? (
-                                        <><span>🚀</span> Давай еще, еще!</>
+                                        <><span>🫡</span> Норм</>
                                     ) : (
-                                        <><span>🤑</span> Деньги! Все хорошо!</>
+                                        <><span>🚀</span> Пушка бомба</>
                                     )}
                                 </span>
                             </div>
@@ -395,43 +389,20 @@ export default function AdminDashboard() {
                         />
                     </div>
 
-                    <div className="relative flex-none" ref={filterRef}>
+                    <div className="relative flex-none">
                         <button
-                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                            className={`flex items-center justify-center h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${isFilterOpen || filterStatus !== 'all' || showArchived ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-500 text-indigo-700 dark:text-indigo-400' : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-transparent hover:border-gray-400 dark:hover:border-gray-500'}`}
+                            type="button"
+                            role="switch"
+                            aria-checked={showArchived}
+                            onClick={() => setShowArchived((current) => !current)}
+                            aria-label="Показывать архивных"
+                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-500 text-indigo-700 dark:text-indigo-400' : 'bg-transparent border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-transparent hover:border-gray-400 dark:hover:border-gray-500'}`}
                         >
-                            <Filter className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="hidden sm:inline">Фильтры</span>
+                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`} aria-hidden="true">
+                                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${showArchived ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                            </span>
+                            <span>Архивные</span>
                         </button>
-
-                        {isFilterOpen && (
-                            <div className="absolute right-0 sm:left-0 sm:right-auto mt-2 w-64 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-20 p-4">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Статус оплаты</label>
-                                        <div className="space-y-2">
-                                            <label className="flex items-center cursor-pointer">
-                                                <input type="radio" className="form-radio text-indigo-600 bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-600 focus:ring-indigo-500" name="status" checked={filterStatus === 'all'} onChange={() => setFilterStatus('all')} />
-                                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Все арендаторы</span>
-                                            </label>
-                                            <label className="flex items-center cursor-pointer">
-                                                <input type="radio" className="form-radio text-indigo-600 bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-600 focus:ring-indigo-500" name="status" checked={filterStatus === 'debt'} onChange={() => setFilterStatus('debt')} />
-                                                <span className="ml-2 text-sm text-red-500">Только с долгом</span>
-                                            </label>
-                                            <label className="flex items-center cursor-pointer">
-                                                <input type="radio" className="form-radio text-indigo-600 bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-600 focus:ring-indigo-500" name="status" checked={filterStatus === 'paid'} onChange={() => setFilterStatus('paid')} />
-                                                <span className="ml-2 text-sm text-green-400">Оплачено</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                                        <label className="flex items-center cursor-pointer">
-                                            <input type="checkbox" className="form-checkbox text-indigo-600 rounded bg-gray-200 dark:bg-gray-700 border-gray-400 dark:border-gray-600 focus:ring-indigo-500" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-                                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Показывать архивных</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <button
@@ -447,7 +418,7 @@ export default function AdminDashboard() {
             {/* Mobile View (Cards) */}
             <div className="mt-6 sm:hidden space-y-2">
                 {filteredTenants.map((tenant) => {
-                    const { totalDebt, nextPaymentDate, expectedAmount } = calculateDebt(tenant, tenant.payments);
+                    const { totalDebt, nextPaymentDate } = calculateDebt(tenant, tenant.payments);
                     return (
                         <div
                             key={tenant.id}
@@ -467,26 +438,14 @@ export default function AdminDashboard() {
                                     <div className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-tight">
                                         {nextPaymentDate ? format(nextPaymentDate, 'dd.MM') : '—'}
                                     </div>
-                                    {totalDebt > 0 ? (
+                                    {totalDebt > 0 && (
                                         <span className="inline-flex items-center px-2 py-1.5 rounded-md text-xs font-bold bg-red-100/30 text-red-600 dark:bg-red-900/20 dark:text-red-500 uppercase border border-red-200/30 dark:border-red-800/30 leading-none">
-                                            {expectedAmount || 0} zł
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center px-2 py-1.5 rounded-md text-xs font-bold bg-green-100/30 text-green-600 dark:bg-green-900/20 dark:text-green-400 uppercase border border-green-200/30 dark:border-green-800/30 leading-none">
-                                            {expectedAmount || 0} zł
+                                            Долг {totalDebt} zł
                                         </span>
                                     )}
                                 </div>
                             </div>
                             
-                            <div className="flex items-center flex-shrink-0">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleFastPayment(e, tenant); }}
-                                    className="text-gray-400 hover:text-indigo-500 p-1"
-                                >
-                                    <CheckCircle className="w-5 h-5" />
-                                </button>
-                            </div>
                         </div>
                     );
                 })}
@@ -505,7 +464,7 @@ export default function AdminDashboard() {
                                     <tr>
                                         <th className="py-3 pl-4 pr-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sm:pl-6">Имя</th>
                                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Велосипед</th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ставка</th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Баланс</th>
                                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Статус</th>
                                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">След. платеж</th>
                                         <th className="relative py-3 pl-3 pr-4 sm:pr-6"><span className="sr-only">Действия</span></th>
@@ -534,7 +493,9 @@ export default function AdminDashboard() {
                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-gray-300">
                                                     {tenant.bikes?.model || '—'}
                                                 </td>
-                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-gray-300 font-medium">{tenant.bikes?.price || 0} zł</td>
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-red-500 dark:text-red-400 font-medium">
+                                                    {totalDebt > 0 ? `Долг ${totalDebt}\u00A0zł` : ''}
+                                                </td>
                                                 <td className="whitespace-nowrap px-3 py-4 text-sm">
                                                     {totalDebt > 0 ? (
                                                         <span className="inline-flex rounded-md bg-red-100/30 dark:bg-red-900/20 px-2.5 py-1 text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide border border-red-200/30 dark:border-red-800/30">
@@ -551,13 +512,6 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                                     <div className="flex justify-end gap-2 relative">
-                                                        <button
-                                                            title="Оплачено"
-                                                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleFastPayment(e, tenant); }}
-                                                            className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 p-1.5 rounded transition-colors hidden sm:flex items-center shadow-sm"
-                                                        >
-                                                            <CheckCircle className="w-4 h-4" />
-                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -596,7 +550,8 @@ export default function AdminDashboard() {
 
 function TenantModal({ onClose, onSuccess, bikes }) {
     const [formData, setFormData] = useState({
-        name: '', slug: '', bike_id: '', next_payment_date: format(new Date(), 'yyyy-MM-dd'), deposit: ''
+        name: '', slug: '', bike_id: '', weekly_payment: '', payment_day: DEFAULT_PAYMENT_DAY,
+        next_payment_date: getScheduledPaymentDate(new Date(), DEFAULT_PAYMENT_DAY), deposit: ''
     });
     const [loading, setLoading] = useState(false);
 
@@ -608,28 +563,30 @@ function TenantModal({ onClose, onSuccess, bikes }) {
             return 0;
         });
 
-    const handleBikeChange = (e) => {
-        const bikeId = e.target.value;
-        const selectedBike = bikes.find(b => b.id === bikeId);
+    const handleBikeChange = (e) => setFormData(prev => ({ ...prev, bike_id: e.target.value }));
+
+    const handlePaymentDayChange = (e) => {
+        const paymentDay = Number(e.target.value);
         setFormData(prev => ({
             ...prev,
-            bike_id: bikeId,
-            deposit: prev.deposit === '' && selectedBike ? selectedBike.price : prev.deposit
+            payment_day: paymentDay,
+            next_payment_date: getScheduledPaymentDate(new Date(), paymentDay)
         }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const rentAmount = formData.bike_id ? (bikes.find(b => b.id === formData.bike_id)?.price || 0) : 0;
-
-        const firstPaymentDate = new Date(formData.next_payment_date);
-        const nextPaymentDateDB = format(addDays(firstPaymentDate, 7), 'yyyy-MM-dd');
+        const rentAmount = Number(formData.weekly_payment) || 0;
+        const firstPaymentDate = formData.next_payment_date;
+        const nextPaymentDateDB = getNextPaymentDate(firstPaymentDate, Number(formData.payment_day));
 
         const { data: newTenant, error } = await supabase.from('tenants').insert([{
             name: formData.name,
             slug: formData.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
             bike_id: formData.bike_id || null,
+            weekly_payment: rentAmount,
+            payment_day: Number(formData.payment_day),
             next_payment_date: nextPaymentDateDB,
             deposit: Number(formData.deposit) || 0
         }]).select().single();
@@ -685,7 +642,7 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                             <option value="">Выберите велосипед</option>
                             {sortedBikes.map(b => (
                                 <option key={b.id} value={b.id}>
-                                    {b.status === 'available' ? '🟢✅ ' : '🟠🔧 '}{b.model} - {b.price} zł
+                                    {b.status === 'available' ? '🟢✅ ' : '🟠🔧 '}{b.model}
                                 </option>
                             ))}
                         </select>
@@ -694,6 +651,16 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Дата первого платежа</label>
                         <input type="date" required value={formData.next_payment_date} onChange={e => setFormData({ ...formData, next_payment_date: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">День еженедельного платежа</label>
+                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                            {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Еженедельный платеж (zł)</label>
+                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" placeholder="150" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Депозит (zł)</label>

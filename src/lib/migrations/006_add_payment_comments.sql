@@ -1,0 +1,5 @@
+ALTER TABLE tenants
+ADD COLUMN IF NOT EXISTS next_payment_comment TEXT;
+
+ALTER TABLE payments
+ADD COLUMN IF NOT EXISTS comment TEXT;

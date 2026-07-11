@@ -39,8 +39,8 @@ The feature pages currently contain their own query and mutation logic. There is
 
 The current frontend expects these Supabase tables and relationships:
 
-- `tenants`: tenant identity, public `slug`, assigned `bike_id`, payment dates/amounts, deposit, comments, and archive state.
-- `bikes`: inventory records with `type`, `model`, `price`, and `status` (`available`, `in_rent`, or `maintenance`).
+- `tenants`: tenant identity, public `slug`, assigned `bike_id`, recurring `weekly_payment`, `payment_day`, payment dates, deposit, comments, and archive state.
+- `bikes`: inventory records with `type`, `model`, and status (`available`, `in_rent`, or `maintenance`). Rental terms are not stored on inventory.
 - `payments`: tenant payment records linked by `tenant_id`.
 - `credits`: business credit records used by the payments page and dashboard.
 - `credit_transactions`: payments/additions linked to credits and consumed by `calculateCreditDebt`.
@@ -50,6 +50,9 @@ Schema changes in `src/lib/migrations/` are incremental:
 1. `001_restructure.sql` adds `bikes`, links it to `tenants`, and removes legacy tenant/payment columns.
 2. `002_add_next_payment_date.sql` adds the next expected tenant payment date.
 3. `003_add_tenant_fields.sql` adds the expected amount and deposit.
+4. `004_move_rental_terms_to_tenants.sql` moves recurring rental terms from bikes to tenants and removes `bikes.price`.
+5. `005_repair_zero_weekly_payments.sql` restores zero recurring payments from existing tenant payment history after the move.
+6. `006_add_payment_comments.sql` adds comments to expected and completed payments.
 
 `supabase_setup.sql` is an older bootstrap script and does not describe the current schema completely. Do not use it alone for a fresh environment: reconcile it with the migrations and the queries in `src/pages/admin/` before provisioning a new database. In particular, the current application also queries `credits`, `credit_transactions`, `bikes`, `is_archived`, and newer tenant fields.
 
@@ -63,6 +66,17 @@ VITE_SUPABASE_ANON_KEY=<publishable-anon-key>
 ```
 
 Only the publishable/anon key belongs in this frontend. Never expose a Supabase service-role key or other privileged secret in `VITE_*` variables.
+
+### Free static deployment
+
+The production frontend is suitable for a free Cloudflare Pages static deployment:
+
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+- Current URL base: `/rent/`; change `vite.config.js` to `/` when deploying at a domain root.
+
+The repository includes a service worker for repeat-load caching of same-origin static assets. It never caches Supabase API responses, so tenant and payment data remain live. The generated manifest allows installation as a phone home-screen app when the site is served over HTTPS.
 
 Install dependencies and start the development server:
 

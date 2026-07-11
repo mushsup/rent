@@ -1,11 +1,11 @@
-import { addDays } from 'date-fns';
+import { buildPaymentLedger, getTenantWeeklyPayment } from './paymentLedger';
+
+export { getTenantWeeklyPayment } from './paymentLedger';
 
 export function calculateDebt(tenant, payments) {
     if (!tenant) {
         return { totalDebt: 0, nextPaymentDate: null, isOverdue: false, expectedAmount: 0, paidTotal: 0 };
     }
-
-    const price = tenant.bikes?.price || 0;
 
     // Use the next_payment_date from the database, or default to today if not set
     const nextPaymentDate = tenant.next_payment_date ? new Date(tenant.next_payment_date) : new Date();
@@ -19,14 +19,18 @@ export function calculateDebt(tenant, payments) {
 
     const isOverdue = normalizedNextDate <= today;
 
-    // Use specific next payment amount if set, otherwise fallback to standard bike price
-    const expectedAmount = tenant.next_payment_amount != null ? Number(tenant.next_payment_amount) : price;
+    // Use a one-off expected amount when present, otherwise use the tenant's recurring weekly payment.
+    const expectedAmount = tenant.next_payment_amount != null
+        ? Number(tenant.next_payment_amount)
+        : getTenantWeeklyPayment(tenant);
 
     // Sort payments by date descending
+    const paymentLedger = buildPaymentLedger(tenant, payments);
+    const totalDebt = Math.max(0, paymentLedger.balanceAtReference);
     const sortedPayments = (payments || []).sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
 
     return {
-        totalDebt: isOverdue ? expectedAmount : 0, // Simplified logic: if overdue, debt is the expected amount
+        totalDebt,
         isOverdue,
         nextPaymentDate,
         expectedAmount,

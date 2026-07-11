@@ -1,11 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { calculateDebt } from '../../utils/calculateDebt';
-import { format, parseISO, addDays } from 'date-fns';
+import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
+import { buildPaymentLedger } from '../../utils/paymentLedger';
+import { format, parseISO } from 'date-fns';
+import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getPaymentDay, getPaymentDayAbbreviation } from '../../utils/paymentSchedule';
 import { ru } from 'date-fns/locale';
-import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, Plus, X, Archive, ChevronDown, CheckCircle, Pencil, MoreVertical } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil, MoreVertical } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 export default function AdminTenantDetail() {
     const { id } = useParams();
@@ -23,7 +24,7 @@ export default function AdminTenantDetail() {
     const { data: bikes = [] } = useQuery({
         queryKey: ['bikes'],
         queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('*');
+            const { data } = await supabase.from('bikes').select('id, model, type, status, price');
             return data || [];
         }
     });
@@ -33,7 +34,7 @@ export default function AdminTenantDetail() {
         queryFn: async () => {
             const { data } = await supabase
                 .from('tenants')
-                .select('*, payments(*), bikes(*)')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, created_at, payments(id, amount, payment_date, comment, created_at), bikes(id, model, type, status, price)')
                 .eq('id', id)
                 .single();
 
@@ -44,66 +45,43 @@ export default function AdminTenantDetail() {
         },
         onSuccess: (data) => {
             if (data && !editForm) {
-                setEditForm({ ...data, bike_id: data.bikes?.id || '' });
+                setEditForm({ ...data, bike_id: data.bikes?.id || '', weekly_payment: data.weekly_payment ?? data.bikes?.price ?? '' });
             }
         }
     });
 
     useEffect(() => {
         if (tenant && !editForm) {
-            setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '' });
+            setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? tenant.bikes?.price ?? '' });
         }
     }, [tenant, editForm]);
 
     const confirmDeletePayment = async () => {
         if (!deletingPaymentId) return;
 
-        const { error } = await supabase.from('payments').delete().eq('id', deletingPaymentId);
-        if (!error) {
-            const currentNextDate = tenant.next_payment_date ? new Date(tenant.next_payment_date) : new Date();
-            const newNextDate = format(addDays(currentNextDate, -7), 'yyyy-MM-dd');
-            await supabase.from('tenants').update({ next_payment_date: newNextDate }).eq('id', tenant.id);
-        }
+        await supabase.from('payments').delete().eq('id', deletingPaymentId);
 
         setDeletingPaymentId(null);
         queryClient.invalidateQueries({ queryKey: ['tenant', id] });
         queryClient.invalidateQueries({ queryKey: ['tenants'] });
     };
 
-    const handleFastPayment = async (e) => {
-        if (e) e.stopPropagation();
-        if (!tenant) return;
-
-        const toastId = toast.loading('Обработка платежа...');
-        const amount = tenant.bikes?.price || 0;
-        const currentNextDate = tenant.next_payment_date ? new Date(tenant.next_payment_date) : new Date();
-        const newNextDate = format(addDays(currentNextDate, 7), 'yyyy-MM-dd');
-
-        const { error } = await supabase.from('payments').insert([{
-            tenant_id: tenant.id,
-            amount: amount,
-            payment_date: format(new Date(), 'yyyy-MM-dd')
-        }]);
-
-        if (!error) {
-            await supabase.from('tenants').update({ next_payment_date: newNextDate }).eq('id', tenant.id);
-            toast.success(`Оплачено ${amount} zł. Следующий платеж: ${format(new Date(newNextDate), 'dd.MM.yyyy')}`, { id: toastId });
-            queryClient.invalidateQueries({ queryKey: ['tenant', id] });
-            queryClient.invalidateQueries({ queryKey: ['tenants'] });
-        } else {
-            toast.error(error.message, { id: toastId });
-        }
-    };
-
     const handleUpdateTenant = async (e) => {
         e.preventDefault();
+        const paymentDay = Number(editForm.payment_day) || DEFAULT_PAYMENT_DAY;
+        const currentPaymentDay = Number(tenant.payment_day) || getPaymentDay(tenant.next_payment_date || new Date());
+        const nextPaymentDate = paymentDay === currentPaymentDay
+            ? tenant.next_payment_date || null
+            : getNextPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
         const { error } = await supabase
             .from('tenants')
             .update({
                 name: editForm.name,
                 slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
                 bike_id: editForm.bike_id || null,
-                next_payment_date: editForm.next_payment_date || null,
+                weekly_payment: Number(editForm.weekly_payment) || 0,
+                payment_day: paymentDay,
+                next_payment_date: nextPaymentDate,
                 deposit: Number(editForm.deposit) || 0,
                 admin_comment: editForm.admin_comment
             })
@@ -158,13 +136,13 @@ export default function AdminTenantDetail() {
     if (!tenant || !editForm) return <div className="text-red-400 p-8">Арендатор не найден</div>;
 
     const { totalDebt, paidTotal, nextPaymentDate, isOverdue, expectedAmount } = calculateDebt(tenant, tenant.payments);
+    const paymentLedger = buildPaymentLedger(tenant, tenant.payments);
 
     const sortedBikes = bikes
         .filter(b => b.status === 'available' || b.status === 'maintenance' || b.id === tenant.bikes?.id)
         .sort((a, b) => {
-            if (a.status === 'available' && b.status !== 'available') return -1;
-            if (a.status !== 'available' && b.status === 'available') return 1;
-            return 0;
+            const statusOrder = { available: 0, maintenance: 1, in_rent: 2 };
+            return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
         });
 
     return (
@@ -190,7 +168,7 @@ export default function AdminTenantDetail() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
                             <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                                 <span className="block text-gray-400 dark:text-gray-500 mb-1">Ставка в неделю:</span>
-                                <span className="font-semibold text-gray-900 dark:text-white text-lg">{tenant.bikes?.price || 0}&nbsp;zł</span>
+                                <span className="font-semibold text-gray-900 dark:text-white text-lg">{getTenantWeeklyPayment(tenant)}&nbsp;zł</span>
                             </div>
                             <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                                 <span className="block text-gray-400 dark:text-gray-500 mb-1">Депозит:</span>
@@ -211,18 +189,11 @@ export default function AdminTenantDetail() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Велосипед</label>
-                                <select
-                                    value={editForm.bike_id}
-                                    onChange={(e) => setEditForm({ ...editForm, bike_id: e.target.value })}
-                                    className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm"
-                                >
-                                    <option value="">Выберите велосипед</option>
-                                    {sortedBikes.map(b => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.status === 'available' ? '🟢✅ ' : (b.status === 'maintenance' ? '🟠🔧 ' : '🔴🚲 ')}{b.model} - {b.price} zł
-                                        </option>
-                                    ))}
-                                </select>
+                                <BikeSelector
+                                    bikes={sortedBikes}
+                                    selectedBikeId={editForm.bike_id}
+                                    onChange={(bikeId) => setEditForm({ ...editForm, bike_id: bikeId })}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Псевдоним ссылки</label>
@@ -232,13 +203,18 @@ export default function AdminTenantDetail() {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Дата след. платежа</label>
-                                <input type="date" value={editForm.next_payment_date || ''} onChange={e => setEditForm({ ...editForm, next_payment_date: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Ожидаемая дата следующей оплаты</p>
-                            </div>
-                            <div>
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Депозит (zł)</label>
                                 <input type="number" value={editForm.deposit || ''} onChange={e => setEditForm({ ...editForm, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Еженедельный платеж (zł)</label>
+                                <input type="number" min="0" value={editForm.weekly_payment || ''} onChange={e => setEditForm({ ...editForm, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">День еженедельного платежа</label>
+                                <select value={editForm.payment_day || DEFAULT_PAYMENT_DAY} onChange={e => setEditForm({ ...editForm, payment_day: Number(e.target.value) })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                                    {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
+                                </select>
                             </div>
                             <div className="sm:col-span-2">
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Комментарий (видно арендатору)</label>
@@ -268,43 +244,25 @@ export default function AdminTenantDetail() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                        <DollarSign className="w-5 h-5 mr-2 text-indigo-400" /> Сводка
-                    </h3>
-                    <dl className="space-y-4">
-                        <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
-                            <dt className="text-gray-500 dark:text-gray-400 text-sm">Ожидаемая сумма к оплате</dt>
-                            <dd className="font-medium text-gray-900 dark:text-white">{expectedAmount}&nbsp;zł</dd>
-                        </div>
-                        <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
-                            <dt className="text-gray-500 dark:text-gray-400 text-sm">Фактически оплачено</dt>
-                            <dd className="font-medium text-green-400">{paidTotal}&nbsp;zł</dd>
-                        </div>
-                        <div className="flex justify-between pt-2">
-                            <dt className="text-gray-700 dark:text-gray-200 font-medium">Текущий баланс</dt>
-                            <dd className={`font-bold text-lg ${totalDebt > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                {totalDebt > 0 ? `Долг ${totalDebt}\u00A0zł` : '0\u00A0zł'}
-                            </dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                             <Calendar className="w-5 h-5 mr-2 text-indigo-400" /> Платежи
                         </h3>
                         <div className="flex gap-2 relative">
-                            <button title="Оплачено" onClick={(e) => handleFastPayment(e)} className="flex items-center bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-md transition-colors shadow-sm">
+                            <button title="Добавить платеж" onClick={() => { setEditingPayment(null); setIsPaymentModalOpen(true); }} className="flex items-center bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white p-2 rounded-md transition-colors">
                                 <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button title="Добавить платеж" onClick={() => { setEditingPayment(null); setIsPaymentModalOpen(true); }} className="flex items-center bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white p-2 rounded-md transition-colors">
-                                <Plus className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
-                    <div className="flow-root mt-6">
+                    <PaymentLedgerList
+                        entries={paymentLedger.entries}
+                        payments={tenant.payments}
+                        onEditPayment={(payment) => { setEditingPayment(payment); setIsPaymentModalOpen(true); }}
+                        onEditExpected={(entry) => { setEditingPayment({ amount: entry.amount, comment: entry.comment || '', payment_date: entry.dateKey, isExpected: true }); setIsPaymentModalOpen(true); }}
+                        onDeletePayment={setDeletingPaymentId}
+                    />
+                    {false && <div className="flow-root mt-6">
                         <ul className="-mb-8">
                             {/* Карточка ожидаемого платежа */}
                             {nextPaymentDate && (
@@ -376,7 +334,7 @@ export default function AdminTenantDetail() {
                                 <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-sm">Оплат пока не было</div>
                             )}
                         </ul>
-                    </div>
+                    </div>}
                 </div>
             </div>
 
@@ -474,10 +432,152 @@ export default function AdminTenantDetail() {
     );
 }
 
+function BikeStatusBadge({ status }) {
+    const statusLabels = {
+        available: 'Свободен',
+        in_rent: 'В аренде',
+        maintenance: 'Ремонт'
+    };
+    const statusStyles = {
+        available: 'border-gray-300 dark:border-gray-600 bg-gray-100/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400',
+        in_rent: 'border-green-200/30 dark:border-green-800/30 bg-green-100/30 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+        maintenance: 'border-orange-200/30 dark:border-orange-800/30 bg-orange-100/30 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+    };
+    const dotStyles = {
+        available: 'bg-gray-400',
+        in_rent: 'bg-green-500',
+        maintenance: 'bg-orange-500'
+    };
+
+    return (
+        <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${statusStyles[status] || statusStyles.available}`}>
+            <span className={`h-2 w-2 rounded-full ${dotStyles[status] || dotStyles.available}`} aria-hidden="true" />
+            {statusLabels[status] || 'Статус неизвестен'}
+        </span>
+    );
+}
+
+function BikeSelector({ bikes, selectedBikeId, onChange }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedBike = bikes.find(bike => bike.id === selectedBikeId);
+
+    return (
+        <div className="relative mt-1">
+            <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={isOpen}
+                onClick={() => setIsOpen(current => !current)}
+                className="flex w-full items-center justify-between rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 text-left focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+            >
+                <span className="truncate">{selectedBike?.model || 'Нет велосипеда'}</span>
+                <ChevronDown className={`ml-2 h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isOpen && (
+                <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 p-1 shadow-xl" role="listbox">
+                    <button
+                        type="button"
+                        role="option"
+                        aria-selected={!selectedBikeId}
+                        onClick={() => { onChange(''); setIsOpen(false); }}
+                        className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                        <span>Нет велосипеда</span>
+                    </button>
+                    {bikes.map(bike => (
+                        <button
+                            key={bike.id}
+                            type="button"
+                            role="option"
+                            aria-selected={bike.id === selectedBikeId}
+                            onClick={() => { onChange(bike.id); setIsOpen(false); }}
+                            className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                            <span className="min-w-0 truncate">{bike.model}</span>
+                            <BikeStatusBadge status={bike.status} />
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, onDeletePayment }) {
+    return (
+        <div className="flow-root mt-6 max-h-[32rem] overflow-y-auto pr-1">
+            <ul className="space-y-3">
+                {[...entries].reverse().map((entry) => {
+                    const isExpected = entry.type === 'expected';
+                    const balanceLabel = entry.balance > 0
+                        ? `−${entry.balance}\u00A0zł`
+                        : entry.balance < 0
+                            ? `+${Math.abs(entry.balance)}\u00A0zł`
+                            : 'Оплачено';
+                    const weekday = getPaymentDayAbbreviation(entry.date);
+                    const payment = !isExpected ? payments.find(item => item.id === entry.paymentId) : null;
+
+                    return (
+                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || 'scheduled'}`} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 p-3">
+                            <div className="flex items-start gap-3">
+                                <span className={`mt-0.5 h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center border ${isExpected ? 'bg-white/10 border-white/20' : 'bg-indigo-900/50 border-indigo-700/50'}`}>
+                                    {isExpected ? <Calendar className="h-4 w-4 text-white" /> : <DollarSign className="h-4 w-4 text-indigo-400" />}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="font-semibold text-gray-900 dark:text-white">{isExpected ? 'Ожидаемый платеж' : 'Оплата'}</div>
+                                            <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={entry.dateKey}>
+                                                {format(entry.date, 'dd.MM.yy')}, {weekday}
+                                            </time>
+                                        </div>
+                                        <span className={`whitespace-nowrap font-bold ${isExpected ? 'text-gray-700 dark:text-gray-200' : 'text-green-400'}`}>
+                                            {isExpected ? '+' : '−'}{entry.amount}&nbsp;zł
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                                        <span className="text-gray-500 dark:text-gray-400">Баланс</span>
+                                        <span className={`font-bold ${entry.balance > 0 ? 'text-red-400' : entry.balance < 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                            {balanceLabel}
+                                        </span>
+                                    </div>
+                                    {entry.comment && (
+                                        <p className="mt-2 border-t border-gray-200 dark:border-gray-700 pt-2 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-line">
+                                            {entry.comment}
+                                        </p>
+                                    )}
+                                </div>
+                                {isExpected && entry.isCurrentExpected ? (
+                                    <button onClick={() => onEditExpected(entry)} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 border border-gray-600/50" title="Изменить ожидаемый платеж">
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                ) : !isExpected && payment ? (
+                                    <div className="flex gap-1">
+                                        <button onClick={() => onEditPayment(payment)} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 border border-gray-600/50">
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => onDeletePayment(entry.paymentId)} className="text-red-400 hover:text-gray-900 dark:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </li>
+                    );
+                })}
+                {entries.length === 0 && (
+                    <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-sm">Платежей пока нет</div>
+                )}
+            </ul>
+        </div>
+    );
+}
+
 function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
     const isEdit = !!payment;
-    const [amount, setAmount] = useState(payment?.amount || tenant?.bikes?.price || '');
+    const [amount, setAmount] = useState(payment?.amount || getTenantWeeklyPayment(tenant) || '');
     const [paymentDate, setPaymentDate] = useState(payment?.payment_date ? format(new Date(payment.payment_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    const [comment, setComment] = useState(payment?.comment || '');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -487,14 +587,16 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
         const payload = {
             tenant_id: tenant.id,
             amount: Number(amount),
-            payment_date: paymentDate
+            payment_date: paymentDate,
+            comment: comment.trim() || null
         };
 
         let response;
         if (isEdit && payment.isExpected) {
             response = await supabase.from('tenants').update({
                 next_payment_date: paymentDate,
-                next_payment_amount: Number(amount)
+                next_payment_amount: Number(amount),
+                next_payment_comment: comment.trim() || null
             }).eq('id', tenant.id);
             setLoading(false);
             if (!response.error) onSuccess();
@@ -508,8 +610,9 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
             response = await supabase.from('payments').insert([payload]);
             if (!response.error) {
                 // Продляем
-                const currentNextDate = tenant.next_payment_date ? new Date(tenant.next_payment_date) : new Date();
-                const newNextDate = format(addDays(currentNextDate, 7), 'yyyy-MM-dd');
+                const currentNextDate = tenant.next_payment_date || format(new Date(), 'yyyy-MM-dd');
+                const paymentDay = tenant.payment_day || getPaymentDay(currentNextDate);
+                const newNextDate = getNextPaymentDate(currentNextDate, paymentDay);
                 await supabase.from('tenants').update({ next_payment_date: newNextDate }).eq('id', tenant.id);
                 setLoading(false);
                 onSuccess();
@@ -538,6 +641,10 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
                     <div className="relative mt-1">
                         <input type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="block w-full appearance-none rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
                     </div>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Комментарий</label>
+                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows="3" placeholder="Например: частичная оплата, перенос, договорённость" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                 </div>
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                     <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-gray-900 dark:text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
