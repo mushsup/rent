@@ -40,6 +40,7 @@ export default function AdminDashboard() {
 
     // Archive visibility state
     const [showArchived, setShowArchived] = useState(false);
+    const [tenantFilter, setTenantFilter] = useState('all');
 
     // Modals state
     const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
@@ -116,6 +117,23 @@ export default function AdminDashboard() {
     const availBikesCount = bikes.filter(b => b.status === 'available').length;
     
     const potentialMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
+
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    const nextSevenDaysKey = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+    const currentMonthKey = format(new Date(), 'yyyy-MM');
+    const activeTenants = tenants.filter(tenant => !tenant.is_archived);
+    const tenantDebt = activeTenants.map(tenant => ({
+        tenant,
+        debt: calculateDebt(tenant, tenant.payments)
+    }));
+    const overdueCount = tenantDebt.filter(({ debt }) => debt.totalDebt > 0 && debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') < todayKey).length;
+    const dueTodayCount = tenantDebt.filter(({ debt }) => debt.totalDebt > 0 && debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') === todayKey).length;
+    const upcomingCount = tenantDebt.filter(({ debt }) => debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') >= todayKey && format(debt.nextPaymentDate, 'yyyy-MM-dd') <= nextSevenDaysKey).length;
+    const totalOutstandingDebt = tenantDebt.reduce((sum, { debt }) => sum + debt.totalDebt, 0);
+    const currentMonthCollected = tenants
+        .flatMap(tenant => tenant.payments || [])
+        .filter(payment => payment.payment_date?.startsWith(currentMonthKey))
+        .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
     
     const processChartData = () => {
         let grouped = {};
@@ -213,6 +231,14 @@ export default function AdminDashboard() {
         // filter by archived
         if (showArchived ? !t.is_archived : t.is_archived) return false;
 
+        const nextDateKey = calculateDebt(t, t.payments).nextPaymentDate
+            ? format(calculateDebt(t, t.payments).nextPaymentDate, 'yyyy-MM-dd')
+            : null;
+        if (tenantFilter === 'overdue' && !(t.computedDebt > 0 && nextDateKey < todayKey)) return false;
+        if (tenantFilter === 'today' && !(t.computedDebt > 0 && nextDateKey === todayKey)) return false;
+        if (tenantFilter === 'upcoming' && !(nextDateKey && nextDateKey >= todayKey && nextDateKey <= nextSevenDaysKey)) return false;
+        if (tenantFilter === 'debt' && t.computedDebt <= 0) return false;
+
         return true;
     }).sort((a, b) => {
         // sort by nextPaymentDate closest first
@@ -230,6 +256,25 @@ export default function AdminDashboard() {
 
     return (
         <div className="pt-2">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+                {[
+                    { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
+                    { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
+                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-indigo-500', suffix: '' },
+                    { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' },
+                    { id: 'all', label: 'Получено в этом месяце', value: currentMonthCollected.toLocaleString('ru-RU'), color: 'text-green-500', suffix: ' zł' }
+                ].map(card => (
+                    <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => setTenantFilter(card.id)}
+                        className={`rounded-xl border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'}`}
+                    >
+                        <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 leading-tight">{card.label}</div>
+                        <div className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}{card.suffix}</div>
+                    </button>
+                ))}
+            </div>
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {/* Chart Card */}
