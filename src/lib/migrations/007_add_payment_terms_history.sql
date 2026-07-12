@@ -38,7 +38,14 @@ SELECT
     tenant.id,
     COALESCE(tenant.weekly_payment, 0),
     COALESCE(tenant.payment_day, 1),
-    COALESCE(tenant.created_at::date, CURRENT_DATE)
+    COALESCE(
+        (
+            SELECT MIN(payment.payment_date) - 7
+            FROM payments AS payment
+            WHERE payment.tenant_id = tenant.id
+        ),
+        COALESCE(tenant.next_payment_date - 84, CURRENT_DATE)
+    )
 FROM tenants AS tenant
 WHERE NOT EXISTS (
     SELECT 1

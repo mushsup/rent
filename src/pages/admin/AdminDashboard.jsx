@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Bike, Scooter, CalendarDays, ExternalLink, X, ChevronDown, DollarSign, Pencil, MoreVertical, Coins, Wallet, Download } from 'lucide-react';
+import { Plus, Search, ExternalLink, X, Download } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getScheduledPaymentDate } from '../../utils/paymentSchedule';
-import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subDays, subMonths, subYears, subWeeks, addDays } from 'date-fns';
+import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subMonths, subYears, subWeeks, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
         queryFn: async () => {
             const currentQuery = await supabase
                 .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, created_at, payments(id, amount, payment_date, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status, price)')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status, price)')
                 .order('name');
 
             if (!currentQuery.error) return currentQuery.data || [];
