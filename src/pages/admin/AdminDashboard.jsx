@@ -67,7 +67,7 @@ export default function AdminDashboard() {
         queryFn: async () => {
             const currentQuery = await supabase
                 .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status, price)')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status)')
                 .order('name');
 
             if (!currentQuery.error) return currentQuery.data || [];

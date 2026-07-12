@@ -35,7 +35,7 @@ export default function AdminTenantDetail() {
             await supabase.rpc('ensure_tenant_payment_charges', { p_tenant_id: id });
             const { data } = await supabase
                 .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), payment_charges:tenant_payment_charges(id, due_date, amount, comment, status), bikes(id, model, type, status, price)')
+                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), payment_charges:tenant_payment_charges(id, due_date, amount, comment, status), bikes(id, model, type, status)')
                 .eq('id', id)
                 .single();
 
