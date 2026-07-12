@@ -6,6 +6,8 @@ The project is a React/Vite single-page application deployed as static assets. `
 
 Supabase provides Auth and PostgreSQL. The browser uses only the publishable/anon key. Database permissions and authenticated mutations are enforced by RLS and SQL functions; service-role keys never belong in frontend code.
 
+The Supabase CLI configuration under `supabase/` manages the isolated beta database. The beta project reference is fixed in package scripts; future remote schema changes use migration files rather than manual SQL Editor changes.
+
 ## Financial model
 
 - `tenants` stores current rental terms and the current expected payment pointer.

@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:login": "supabase login",
+    "db:link:beta": "supabase link --project-ref geeyefhmccqbtvlfesba",
+    "db:pull:beta": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db pull",
+    "db:migrations": "supabase migration list",
+    "db:push:beta": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db push"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
@@ -35,6 +40,7 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.11.0",
     "postcss": "^8.5.6",
+    "supabase": "^2.109.1",
     "tailwindcss": "^4.2.1",
     "vite": "^5.4.10"
   }

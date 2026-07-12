@@ -10,6 +10,7 @@
 - [ ] [Ryxi](tasks/Ryxi.md) Restrict public Supabase data access and review authenticated policies
 - [ ] [Hino](tasks/Hino.md) Reconcile database migrations with the current application schema
 - [ ] [Byzo](tasks/Byzo.md) Add database and form validation for financial and assignment data
+- [~] [Ryvo](tasks/Ryvo.md) Configure Supabase CLI migration management for beta
 
 ## Financial correctness
 

@@ -44,6 +44,18 @@ Do not add the service-role key to Cloudflare or the repository. The browser may
 
 Apply every SQL migration in `src/lib/migrations/` to the production Supabase project in filename order. Do not edit migrations that have already been applied; add a new migration for later changes.
 
+For the isolated beta project, use the repository CLI workflow:
+
+```bash
+npm run db:login
+npm run db:link:beta
+npm run db:pull:beta
+npm run db:migrations
+npm run db:push:beta
+```
+
+`db:pull:beta` captures the beta schema that was initially created through SQL Editor. Future migration files belong in `supabase/migrations/` and are applied with `db:push:beta`. The fixed project reference in the scripts prevents an accidental production target. Login tokens, database passwords, and `.temp` link metadata are not committed.
+
 ## 5. Verify after deployment
 
 Check these URLs and flows:
