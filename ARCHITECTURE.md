@@ -19,7 +19,7 @@ Payment recording and tenant profile/bike assignment use PostgreSQL RPC function
 
 ## Operational UX
 
-The dashboard starts with action-oriented counts for overdue, due-today, upcoming, outstanding debt, and current-month receipts. Cards filter the tenant list. Tenant detail is the source of truth for payment entry, comments, scheduled charges, and running balance. CSV export supports manual reporting.
+The dashboard starts with action-oriented counts for overdue, due-today, upcoming, and outstanding debt. Cards filter the tenant list. Tenant detail is the source of truth for payment entry, comments, scheduled charges, and running balance. Historical expected charges remain visible, while only the nearest charge after today is previewed.
 
 ## Performance and deployment
 

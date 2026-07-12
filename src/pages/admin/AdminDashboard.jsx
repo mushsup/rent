@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, ExternalLink, X, Download } from 'lucide-react';
+import { Plus, Search, ExternalLink, X } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getScheduledPaymentDate } from '../../utils/paymentSchedule';
@@ -120,7 +120,6 @@ export default function AdminDashboard() {
 
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const nextSevenDaysKey = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-    const currentMonthKey = format(new Date(), 'yyyy-MM');
     const activeTenants = tenants.filter(tenant => !tenant.is_archived);
     const tenantDebt = activeTenants.map(tenant => ({
         tenant,
@@ -130,10 +129,6 @@ export default function AdminDashboard() {
     const dueTodayCount = tenantDebt.filter(({ debt }) => debt.totalDebt > 0 && debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') === todayKey).length;
     const upcomingCount = tenantDebt.filter(({ debt }) => debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') >= todayKey && format(debt.nextPaymentDate, 'yyyy-MM-dd') <= nextSevenDaysKey).length;
     const totalOutstandingDebt = tenantDebt.reduce((sum, { debt }) => sum + debt.totalDebt, 0);
-    const currentMonthCollected = tenants
-        .flatMap(tenant => tenant.payments || [])
-        .filter(payment => payment.payment_date?.startsWith(currentMonthKey))
-        .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
     
     const processChartData = () => {
         let grouped = {};
@@ -249,30 +244,6 @@ export default function AdminDashboard() {
         return timeA - timeB;
     });
 
-    const exportTenantsCsv = () => {
-        const headers = ['Имя', 'Велосипед', 'Ставка в неделю', 'Баланс', 'Следующий платеж', 'Архив'];
-        const rows = filteredTenants.map(tenant => {
-            const debt = calculateDebt(tenant, tenant.payments);
-            return [
-                tenant.name,
-                tenant.bikes?.model || '',
-                getTenantWeeklyPayment(tenant),
-                debt.totalDebt > 0 ? debt.totalDebt : 0,
-                debt.nextPaymentDate ? format(debt.nextPaymentDate, 'dd.MM.yyyy') : '',
-                tenant.is_archived ? 'Да' : 'Нет'
-            ];
-        });
-        const escapeCsvValue = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
-        const csv = `\uFEFF${[headers, ...rows].map(row => row.map(escapeCsvValue).join(';')).join('\n')}`;
-        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `rent-tenants-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-    };
-
-
     const handleRowClick = (tenant) => {
         navigate(`/admin/tenant/${tenant.id}`);
     };
@@ -284,13 +255,12 @@ export default function AdminDashboard() {
                     Не удалось загрузить часть данных. {tenantsQueryError?.message || 'Проверьте подключение к базе данных.'}
                 </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 {[
                     { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
                     { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
                     { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-indigo-500', suffix: '' },
-                    { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' },
-                    { id: 'all', label: 'Получено в этом месяце', value: currentMonthCollected.toLocaleString('ru-RU'), color: 'text-green-500', suffix: ' zł' }
+                    { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' }
                 ].map(card => (
                     <button
                         key={card.id}
@@ -484,15 +454,6 @@ export default function AdminDashboard() {
                     >
                         <Plus className="h-5 w-5 sm:mr-1.5" />
                         <span className="hidden sm:inline">Добавить</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={exportTenantsCsv}
-                        className="flex-none inline-flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 sm:px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                        title="Экспортировать список"
-                    >
-                        <Download className="h-5 w-5 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Экспорт</span>
                     </button>
                 </div>
             </div>

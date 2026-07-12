@@ -73,6 +73,7 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
         effective_from: startDate,
         effective_to: null
     }];
+    const referenceKey = toDateKey(referenceDate);
 
     const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
     const adjustments = (tenant.payment_adjustments || []).filter(adjustment => adjustment?.adjustment_date);
@@ -93,9 +94,18 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     }
     // A manually moved current expected payment is still a real ledger event.
     expectedDates.add(nextPaymentKey);
+    let hasFutureExpectedDate = false;
+    const visibleExpectedDates = Array.from(expectedDates)
+        .sort(compareDates)
+        .filter(date => {
+            if (compareDates(date, referenceKey) <= 0) return true;
+            if (hasFutureExpectedDate) return false;
+            hasFutureExpectedDate = true;
+            return true;
+        });
 
     const events = [
-        ...Array.from(expectedDates).map(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
+        ...visibleExpectedDates.map(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
         ...adjustments.map(adjustment => ({
             type: 'adjustment',
             date: toDateKey(adjustment.adjustment_date),
@@ -118,7 +128,6 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     const expectedOverride = tenant.next_payment_amount != null ? Number(tenant.next_payment_amount) : null;
     let balance = 0;
     let balanceAtReference = 0;
-    const referenceKey = toDateKey(referenceDate);
     const entries = events.map(event => {
         const term = event.type === 'expected'
             ? effectiveTerms.find(candidate => (
