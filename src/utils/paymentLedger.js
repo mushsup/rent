@@ -75,6 +75,7 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     }];
 
     const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
+    const adjustments = (tenant.payment_adjustments || []).filter(adjustment => adjustment?.adjustment_date);
     const chargeByDate = new Map(persistedCharges.map(charge => [toDateKey(charge.due_date), charge]));
     const expectedDates = new Set();
     if (persistedCharges.length > 0) {
@@ -95,13 +96,22 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
 
     const events = [
         ...Array.from(expectedDates).map(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
+        ...adjustments.map(adjustment => ({
+            type: 'adjustment',
+            date: toDateKey(adjustment.adjustment_date),
+            amount: Number(adjustment.amount) || 0,
+            direction: adjustment.direction,
+            comment: adjustment.comment || '',
+            adjustmentId: adjustment.id,
+            sortOrder: 1
+        })),
         ...actualPayments.map(payment => ({
             type: 'payment',
             date: toDateKey(payment.payment_date),
             amount: Number(payment.amount) || 0,
             comment: payment.comment || '',
             paymentId: payment.id,
-            sortOrder: 1
+            sortOrder: 2
         }))
     ].sort((left, right) => compareDates(left.date, right.date) || left.sortOrder - right.sortOrder);
 
@@ -121,7 +131,11 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
                 ? Number(event.charge.amount) || 0
                 : event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : term.weekly_payment)
             : event.amount;
-        const signedAmount = event.type === 'expected' ? amount : -amount;
+        const signedAmount = event.type === 'expected'
+            ? amount
+            : event.type === 'adjustment'
+                ? (event.direction === 'charge' ? amount : -amount)
+                : -amount;
         balance += signedAmount;
         if (compareDates(event.date, referenceKey) <= 0) balanceAtReference = balance;
 

@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -6,8 +7,20 @@ import { buildPaymentLedger } from '../../utils/paymentLedger';
 import { format } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getPaymentDay, getPaymentDayAbbreviation } from '../../utils/paymentSchedule';
 import { ru } from 'date-fns/locale';
-import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil, Phone, Send } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+function normalizeTelegramUsername(value) {
+    return (value || '')
+        .trim()
+        .replace(/^https?:\/\/t\.me\//i, '')
+        .replace(/^@/, '');
+}
+
+function getPhoneHref(phone) {
+    return `tel:${(phone || '').replace(/[^\d+]/g, '')}`;
+}
+
 export default function AdminTenantDetail() {
     const { id } = useParams();
     const queryClient = useQueryClient();
@@ -16,15 +29,17 @@ export default function AdminTenantDetail() {
     const [isEditing, setIsEditing] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [editingPayment, setEditingPayment] = useState(null);
+    const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
+    const [editingAdjustment, setEditingAdjustment] = useState(null);
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+    const [deletingRecord, setDeletingRecord] = useState(null);
     const [editForm, setEditForm] = useState(null);
 
     const { data: bikes = [], isError: bikesError } = useQuery({
         queryKey: ['bikes'],
         queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('id, model, type, status, price');
+            const { data } = await supabase.from('bikes').select('id, model, type, status');
             return data || [];
         }
     });
@@ -35,7 +50,7 @@ export default function AdminTenantDetail() {
             await supabase.rpc('ensure_tenant_payment_charges', { p_tenant_id: id });
             const { data } = await supabase
                 .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), payment_charges:tenant_payment_charges(id, due_date, amount, comment, status), bikes(id, model, type, status)')
+                .select('id, name, slug, bike_id, is_archived, phone, telegram_username, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), payment_charges:tenant_payment_charges(id, due_date, amount, comment, status), payment_adjustments:tenant_payment_adjustments(id, direction, amount, adjustment_date, comment), bikes(id, model, type, status)')
                 .eq('id', id)
                 .single();
 
@@ -57,12 +72,20 @@ export default function AdminTenantDetail() {
         }
     }, [tenant, editForm]);
 
-    const confirmDeletePayment = async () => {
-        if (!deletingPaymentId) return;
+    const confirmDeleteRecord = async () => {
+        if (!deletingRecord) return;
 
-        await supabase.from('payments').delete().eq('id', deletingPaymentId);
+        const table = deletingRecord.type === 'adjustment'
+            ? 'tenant_payment_adjustments'
+            : 'payments';
+        const { error } = await supabase.from(table).delete().eq('id', deletingRecord.id);
 
-        setDeletingPaymentId(null);
+        if (error) {
+            alert(error.message);
+            return;
+        }
+
+        setDeletingRecord(null);
         queryClient.invalidateQueries({ queryKey: ['tenant', id] });
         queryClient.invalidateQueries({ queryKey: ['tenants'] });
     };
@@ -75,7 +98,7 @@ export default function AdminTenantDetail() {
         const nextPaymentDate = paymentDay === currentPaymentDay
             ? tenant.next_payment_date || null
             : getNextPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
-        const { error } = await supabase.rpc('update_tenant_profile', {
+        const { error: profileError } = await supabase.rpc('update_tenant_profile', {
             p_tenant_id: id,
             p_name: editForm.name,
             p_slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
@@ -86,6 +109,14 @@ export default function AdminTenantDetail() {
             p_deposit: Number(editForm.deposit) || 0,
             p_admin_comment: editForm.admin_comment || null
         });
+
+        const { error: contactError } = profileError
+            ? { error: null }
+            : await supabase.from('tenants').update({
+                phone: editForm.phone?.trim() || null,
+                telegram_username: normalizeTelegramUsername(editForm.telegram_username) || null
+            }).eq('id', id);
+        const error = profileError || contactError;
 
         if (!error) {
             setIsEditing(false);
@@ -165,6 +196,22 @@ export default function AdminTenantDetail() {
                                 <span className="block text-gray-400 dark:text-gray-500 mb-1">Депозит:</span>
                                 <span className="font-semibold text-gray-900 dark:text-white text-lg">{tenant.deposit || 0}&nbsp;zł</span>
                             </div>
+                            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <span className="block text-gray-400 dark:text-gray-500 mb-2">Телефон:</span>
+                                {tenant.phone ? (
+                                    <a href={getPhoneHref(tenant.phone)} className="inline-flex items-center gap-2 font-semibold text-indigo-500 hover:text-indigo-400">
+                                        <Phone className="h-4 w-4" /> {tenant.phone}
+                                    </a>
+                                ) : <span className="text-gray-500 dark:text-gray-400">Не указан</span>}
+                            </div>
+                            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <span className="block text-gray-400 dark:text-gray-500 mb-2">Telegram:</span>
+                                {tenant.telegram_username ? (
+                                    <a href={`https://t.me/${normalizeTelegramUsername(tenant.telegram_username)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-semibold text-indigo-500 hover:text-indigo-400">
+                                        <Send className="h-4 w-4" /> @{normalizeTelegramUsername(tenant.telegram_username)}
+                                    </a>
+                                ) : <span className="text-gray-500 dark:text-gray-400">Не указан</span>}
+                            </div>
                             <div className="sm:col-span-2 bg-blue-900/10 border border-blue-900/30 p-4 rounded-lg">
                                 <span className="block text-gray-500 dark:text-gray-400 mb-1 text-xs uppercase tracking-wider">Заметка администратора</span>
                                 <span className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{tenant.admin_comment || 'Нет комментария'}</span>
@@ -196,6 +243,14 @@ export default function AdminTenantDetail() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Депозит (zł)</label>
                                 <input type="number" value={editForm.deposit || ''} onChange={e => setEditForm({ ...editForm, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Телефон</label>
+                                <input type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Telegram</label>
+                                <input type="text" value={editForm.telegram_username || ''} onChange={e => setEditForm({ ...editForm, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Еженедельный платеж (zł)</label>
@@ -241,6 +296,9 @@ export default function AdminTenantDetail() {
                             <Calendar className="w-5 h-5 mr-2 text-indigo-400" /> Платежи
                         </h3>
                         <div className="flex gap-2 relative">
+                            <button title="Добавить корректировку" onClick={() => { setEditingAdjustment(null); setIsAdjustmentModalOpen(true); }} className="flex items-center bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white p-2 rounded-md transition-colors">
+                                <Pencil className="w-4 h-4" />
+                            </button>
                             <button title="Добавить платеж" onClick={() => { setEditingPayment(null); setIsPaymentModalOpen(true); }} className="flex items-center bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white p-2 rounded-md transition-colors">
                                 <CheckCircle className="w-4 h-4" />
                             </button>
@@ -251,7 +309,9 @@ export default function AdminTenantDetail() {
                         payments={tenant.payments}
                         onEditPayment={(payment) => { setEditingPayment(payment); setIsPaymentModalOpen(true); }}
                         onEditExpected={(entry) => { setEditingPayment({ amount: entry.amount, comment: entry.comment || '', payment_date: entry.dateKey, isExpected: true }); setIsPaymentModalOpen(true); }}
-                        onDeletePayment={setDeletingPaymentId}
+                        onDeletePayment={(paymentId) => setDeletingRecord({ type: 'payment', id: paymentId })}
+                        onEditAdjustment={(adjustment) => { setEditingAdjustment(adjustment); setIsAdjustmentModalOpen(true); }}
+                        onDeleteAdjustment={(adjustmentId) => setDeletingRecord({ type: 'adjustment', id: adjustmentId })}
                     />
                     {typeof window === 'undefined' && <div className="flow-root mt-6">
                         <ul className="-mb-8">
@@ -312,7 +372,7 @@ export default function AdminTenantDetail() {
                                                     <button onClick={() => { setEditingPayment(payment); setIsPaymentModalOpen(true); }} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:bg-gray-700 border border-gray-600/50">
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => setDeletingPaymentId(payment.id)} className="text-red-400 hover:text-gray-900 dark:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
+                                                    <button onClick={() => setDeletingRecord({ type: 'payment', id: payment.id })} className="text-red-400 hover:text-gray-900 dark:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -330,22 +390,22 @@ export default function AdminTenantDetail() {
             </div>
 
             {/* Delete Confirmation Modal */}
-            {deletingPaymentId && (
+            {deletingRecord && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setDeletingPaymentId(null); }} />
+                    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setDeletingRecord(null); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
-                            <button onClick={() => setDeletingPaymentId(null)} className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white transition-colors bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                            <button onClick={() => setDeletingRecord(null)} className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white transition-colors bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
                                 <X className="w-5 h-5" />
                             </button>
                             <div className="flex items-center text-red-400 mb-4 pr-6">
                                 <AlertCircle className="w-6 h-6 mr-2" />
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Удалить платеж?</h3>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Удалить {deletingRecord.type === 'adjustment' ? 'корректировку' : 'платеж'}?</h3>
                             </div>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-6">Эта операция удалит платеж из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно.</p>
+                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-6">Эта операция удалит запись из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно.</p>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => setDeletingPaymentId(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
-                                <button onClick={confirmDeletePayment} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
+                                <button onClick={() => setDeletingRecord(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
+                                <button onClick={confirmDeleteRecord} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
                             </div>
                         </div>
                     </div>
@@ -358,6 +418,17 @@ export default function AdminTenantDetail() {
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
                             <PaymentModalForm payment={editingPayment} tenant={tenant} onClose={() => setIsPaymentModalOpen(false)} onSuccess={() => { setIsPaymentModalOpen(false); queryClient.invalidateQueries({ queryKey: ['tenant', id] }); queryClient.invalidateQueries({ queryKey: ['tenants'] }); }} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isAdjustmentModalOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsAdjustmentModalOpen(false); }} />
+                    <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                            <AdjustmentModalForm adjustment={editingAdjustment} tenant={tenant} onClose={() => setIsAdjustmentModalOpen(false)} onSuccess={() => { setIsAdjustmentModalOpen(false); queryClient.invalidateQueries({ queryKey: ['tenant', id] }); queryClient.invalidateQueries({ queryKey: ['tenants'] }); }} />
                         </div>
                     </div>
                 </div>
@@ -494,36 +565,48 @@ function BikeSelector({ bikes, selectedBikeId, onChange }) {
     );
 }
 
-function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, onDeletePayment }) {
+function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, onDeletePayment, onEditAdjustment, onDeleteAdjustment }) {
     return (
         <div className="flow-root mt-6 max-h-[32rem] overflow-y-auto pr-1">
             <ul className="space-y-3">
                 {[...entries].reverse().map((entry) => {
                     const isExpected = entry.type === 'expected';
+                    const isAdjustment = entry.type === 'adjustment';
                     const balanceLabel = entry.balance > 0
                         ? `−${entry.balance}\u00A0zł`
                         : entry.balance < 0
                             ? `+${Math.abs(entry.balance)}\u00A0zł`
                             : 'Оплачено';
                     const weekday = getPaymentDayAbbreviation(entry.date);
-                    const payment = !isExpected ? payments.find(item => item.id === entry.paymentId) : null;
+                    const payment = !isExpected && !isAdjustment ? payments.find(item => item.id === entry.paymentId) : null;
+                    const entryTitle = isExpected
+                        ? 'Ожидаемый платеж'
+                        : isAdjustment
+                            ? (entry.direction === 'charge' ? 'Корректировка: увеличить долг' : 'Корректировка: списать долг')
+                            : 'Оплата';
+                    const amountPrefix = isExpected || (isAdjustment && entry.direction === 'charge') ? '+' : '−';
+                    const amountClass = isExpected
+                        ? 'text-gray-700 dark:text-gray-200'
+                        : isAdjustment && entry.direction === 'charge'
+                            ? 'text-orange-400'
+                            : 'text-green-400';
 
                     return (
-                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || 'scheduled'}`} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 p-3">
+                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId || 'scheduled'}`} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 p-3">
                             <div className="flex items-start gap-3">
-                                <span className={`mt-0.5 h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center border ${isExpected ? 'bg-white/10 border-white/20' : 'bg-indigo-900/50 border-indigo-700/50'}`}>
-                                    {isExpected ? <Calendar className="h-4 w-4 text-white" /> : <DollarSign className="h-4 w-4 text-indigo-400" />}
+                                <span className={`mt-0.5 h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center border ${isExpected ? 'bg-white/10 border-white/20' : isAdjustment ? 'bg-orange-900/30 border-orange-700/50' : 'bg-indigo-900/50 border-indigo-700/50'}`}>
+                                    {isExpected ? <Calendar className="h-4 w-4 text-white" /> : isAdjustment ? <Pencil className="h-4 w-4 text-orange-400" /> : <DollarSign className="h-4 w-4 text-indigo-400" />}
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <div className="font-semibold text-gray-900 dark:text-white">{isExpected ? 'Ожидаемый платеж' : 'Оплата'}</div>
+                                            <div className="font-semibold text-gray-900 dark:text-white">{entryTitle}</div>
                                             <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={entry.dateKey}>
                                                 {format(entry.date, 'dd.MM.yy')}, {weekday}
                                             </time>
                                         </div>
-                                        <span className={`whitespace-nowrap font-bold ${isExpected ? 'text-gray-700 dark:text-gray-200' : 'text-green-400'}`}>
-                                            {isExpected ? '+' : '−'}{entry.amount}&nbsp;zł
+                                        <span className={`whitespace-nowrap font-bold ${amountClass}`}>
+                                            {amountPrefix}{entry.amount}&nbsp;zł
                                         </span>
                                     </div>
                                     <div className="mt-2 flex items-center justify-between gap-3 text-xs">
@@ -542,6 +625,15 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                                     <button onClick={() => onEditExpected(entry)} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 border border-gray-600/50" title="Изменить ожидаемый платеж">
                                         <Pencil className="w-4 h-4" />
                                     </button>
+                                ) : isAdjustment ? (
+                                    <div className="flex gap-1">
+                                        <button onClick={() => onEditAdjustment({ id: entry.adjustmentId, amount: entry.amount, direction: entry.direction, adjustment_date: entry.dateKey, comment: entry.comment || '' })} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 border border-gray-600/50" title="Изменить корректировку">
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => onDeleteAdjustment(entry.adjustmentId)} className="text-red-400 hover:text-gray-900 dark:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20" title="Удалить корректировку">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 ) : !isExpected && payment ? (
                                     <div className="flex gap-1">
                                         <button onClick={() => onEditPayment(payment)} className="text-gray-500 dark:text-gray-400 hover:text-indigo-400 transition-colors p-1.5 rounded bg-gray-200/50 dark:bg-gray-700/50 border border-gray-600/50">
@@ -560,6 +652,71 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                     <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-sm">Платежей пока нет</div>
                 )}
             </ul>
+        </div>
+    );
+}
+
+function AdjustmentModalForm({ tenant, adjustment, onClose, onSuccess }) {
+    const isEdit = !!adjustment;
+    const [direction, setDirection] = useState(adjustment?.direction || 'credit');
+    const [amount, setAmount] = useState(adjustment?.amount || '');
+    const [adjustmentDate, setAdjustmentDate] = useState(adjustment?.adjustment_date || format(new Date(), 'yyyy-MM-dd'));
+    const [comment, setComment] = useState(adjustment?.comment || '');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        const payload = {
+            tenant_id: tenant.id,
+            direction,
+            amount: Number(amount),
+            adjustment_date: adjustmentDate,
+            comment: comment.trim()
+        };
+        const response = isEdit
+            ? await supabase.from('tenant_payment_adjustments').update(payload).eq('id', adjustment.id)
+            : await supabase.from('tenant_payment_adjustments').insert(payload);
+
+        setLoading(false);
+        if (!response.error) onSuccess();
+        else alert(response.error.message);
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{isEdit ? 'Редактировать корректировку' : 'Добавить корректировку'}</h3>
+                <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white transition-colors bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Действие</label>
+                    <select value={direction} onChange={e => setDirection(e.target.value)} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="credit">Списать долг</option>
+                        <option value="charge">Увеличить долг</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Сумма (zł)</label>
+                    <input type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Дата</label>
+                    <input type="date" required value={adjustmentDate} onChange={e => setAdjustmentDate(e.target.value)} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Причина корректировки</label>
+                    <textarea required value={comment} onChange={e => setComment(e.target.value)} rows="3" placeholder="Например: списание долга по договорённости" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                </div>
+                <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-gray-900 dark:text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 sm:col-start-2 sm:text-sm disabled:opacity-50">Сохранить</button>
+                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-400 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 px-4 py-2 text-base font-medium text-gray-600 dark:text-gray-300 shadow-sm hover:bg-gray-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">Отмена</button>
+                </div>
+            </form>
         </div>
     );
 }

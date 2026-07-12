@@ -11,6 +11,7 @@ Supabase provides Auth and PostgreSQL. The browser uses only the publishable/ano
 - `tenants` stores current rental terms and the current expected payment pointer.
 - `tenant_payment_terms` stores effective-dated weekly rates and weekdays so historical terms remain explainable.
 - `tenant_payment_charges` stores expected scheduled charges and their original amounts.
+- `tenant_payment_adjustments` stores dated, explained changes that increase or reduce a balance without rewriting payment history.
 - `payments` stores completed payments and comments.
 - `paymentLedger.js` combines persisted charges and payments into a chronological balance view, with a calculated fallback for databases before migrations 007/012.
 

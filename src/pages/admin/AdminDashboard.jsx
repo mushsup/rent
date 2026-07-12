@@ -633,7 +633,7 @@ export default function AdminDashboard() {
 function TenantModal({ onClose, onSuccess, bikes }) {
     const [formData, setFormData] = useState({
         name: '', slug: '', bike_id: '', weekly_payment: '', payment_day: DEFAULT_PAYMENT_DAY,
-        next_payment_date: getScheduledPaymentDate(new Date(), DEFAULT_PAYMENT_DAY), deposit: ''
+        next_payment_date: getScheduledPaymentDate(new Date(), DEFAULT_PAYMENT_DAY), deposit: '', phone: '', telegram_username: ''
     });
     const [loading, setLoading] = useState(false);
 
@@ -670,7 +670,9 @@ function TenantModal({ onClose, onSuccess, bikes }) {
             weekly_payment: rentAmount,
             payment_day: Number(formData.payment_day),
             next_payment_date: nextPaymentDateDB,
-            deposit: Number(formData.deposit) || 0
+            deposit: Number(formData.deposit) || 0,
+            phone: formData.phone.trim() || null,
+            telegram_username: formData.telegram_username.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '') || null
         }]).select().single();
 
         if (!error && newTenant) {
@@ -751,6 +753,14 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                         <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
                             {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
                         </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Телефон</label>
+                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Telegram</label>
+                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                     </div>
                 </div>
                 <div>

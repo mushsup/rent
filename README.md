@@ -60,6 +60,7 @@ Schema changes in `src/lib/migrations/` are incremental:
 11. `010_harden_service_rls.sql` enables RLS and authenticated-admin policies for inventory and credit tables.
 12. `011_update_tenant_profile_rpc.sql` saves tenant terms and bike assignment atomically.
 13. `012_persist_payment_charges.sql` persists expected weekly charges for an explainable payment ledger.
+14. `013_add_tenant_contacts_and_adjustments.sql` adds tenant phone/Telegram contacts and immutable balance corrections.
 
 `supabase_setup.sql` is an older bootstrap script and does not describe the current schema completely. Do not use it alone for a fresh environment: reconcile it with the migrations and the queries in `src/pages/admin/` before provisioning a new database. In particular, the current application also queries `credits`, `credit_transactions`, `bikes`, `is_archived`, and newer tenant fields.
 
