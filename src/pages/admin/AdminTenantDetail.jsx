@@ -71,50 +71,22 @@ export default function AdminTenantDetail() {
         const paymentDay = Number(editForm.payment_day) || DEFAULT_PAYMENT_DAY;
         const currentPaymentDay = Number(tenant.payment_day) || getPaymentDay(tenant.next_payment_date || new Date());
         const weeklyPayment = Number(editForm.weekly_payment) || 0;
-        const paymentTermsChanged = weeklyPayment !== Number(tenant.weekly_payment || getTenantWeeklyPayment(tenant))
-            || paymentDay !== currentPaymentDay;
         const nextPaymentDate = paymentDay === currentPaymentDay
             ? tenant.next_payment_date || null
             : getNextPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
-        const { error } = await supabase
-            .from('tenants')
-            .update({
-                name: editForm.name,
-                slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
-                bike_id: editForm.bike_id || null,
-                weekly_payment: weeklyPayment,
-                payment_day: paymentDay,
-                next_payment_date: nextPaymentDate,
-                deposit: Number(editForm.deposit) || 0,
-                admin_comment: editForm.admin_comment
-            })
-            .eq('id', id);
+        const { error } = await supabase.rpc('update_tenant_profile', {
+            p_tenant_id: id,
+            p_name: editForm.name,
+            p_slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
+            p_bike_id: editForm.bike_id || null,
+            p_weekly_payment: weeklyPayment,
+            p_payment_day: paymentDay,
+            p_next_payment_date: nextPaymentDate,
+            p_deposit: Number(editForm.deposit) || 0,
+            p_admin_comment: editForm.admin_comment || null
+        });
 
         if (!error) {
-            if (paymentTermsChanged) {
-                const { error: termsError } = await supabase.rpc('upsert_tenant_payment_terms', {
-                    p_tenant_id: tenant.id,
-                    p_weekly_payment: weeklyPayment,
-                    p_payment_day: paymentDay,
-                    p_effective_from: format(new Date(), 'yyyy-MM-dd')
-                });
-
-                if (termsError) {
-                    alert(termsError.message);
-                    return;
-                }
-            }
-
-            if (tenant.bikes?.id !== editForm.bike_id) {
-                if (tenant.bikes?.id) {
-                    await supabase.from('bikes').update({ status: 'available' }).eq('id', tenant.bikes.id);
-                    // Также очищаем связь у любых арендаторов (на случай если была задвоена связь)
-                    await supabase.from('tenants').update({ bike_id: null }).eq('bike_id', tenant.bikes.id);
-                }
-                if (editForm.bike_id) {
-                    await supabase.from('bikes').update({ status: 'in_rent' }).eq('id', editForm.bike_id);
-                }
-            }
             setIsEditing(false);
             queryClient.invalidateQueries({ queryKey: ['tenant', id] });
             queryClient.invalidateQueries({ queryKey: ['tenants'] });
