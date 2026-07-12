@@ -74,21 +74,27 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
         effective_to: null
     }];
 
+    const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
+    const chargeByDate = new Map(persistedCharges.map(charge => [toDateKey(charge.due_date), charge]));
     const expectedDates = new Set();
-    effectiveTerms.forEach(term => {
-        const termStart = compareDates(term.effective_from, startDate) > 0 ? term.effective_from : startDate;
-        const termEnd = term.effective_to && compareDates(term.effective_to, endDate) < 0 ? term.effective_to : endDate;
-        let expectedDate = getScheduledPaymentDate(termStart, term.payment_day);
-        while (compareDates(expectedDate, termEnd) <= 0) {
-            expectedDates.add(expectedDate);
-            expectedDate = toDateKey(addDays(toDate(expectedDate), 7));
-        }
-    });
+    if (persistedCharges.length > 0) {
+        persistedCharges.forEach(charge => expectedDates.add(toDateKey(charge.due_date)));
+    } else {
+        effectiveTerms.forEach(term => {
+            const termStart = compareDates(term.effective_from, startDate) > 0 ? term.effective_from : startDate;
+            const termEnd = term.effective_to && compareDates(term.effective_to, endDate) < 0 ? term.effective_to : endDate;
+            let expectedDate = getScheduledPaymentDate(termStart, term.payment_day);
+            while (compareDates(expectedDate, termEnd) <= 0) {
+                expectedDates.add(expectedDate);
+                expectedDate = toDateKey(addDays(toDate(expectedDate), 7));
+            }
+        });
+    }
     // A manually moved current expected payment is still a real ledger event.
     expectedDates.add(nextPaymentKey);
 
     const events = [
-        ...Array.from(expectedDates).map(date => ({ type: 'expected', date, sortOrder: 0 })),
+        ...Array.from(expectedDates).map(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
         ...actualPayments.map(payment => ({
             type: 'payment',
             date: toDateKey(payment.payment_date),
@@ -111,7 +117,9 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
             )) || effectiveTerms[effectiveTerms.length - 1]
             : null;
         const amount = event.type === 'expected'
-            ? (event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : term.weekly_payment)
+            ? (event.charge
+                ? Number(event.charge.amount) || 0
+                : event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : term.weekly_payment)
             : event.amount;
         const signedAmount = event.type === 'expected' ? amount : -amount;
         balance += signedAmount;
@@ -127,7 +135,7 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
             isCurrentExpected: event.type === 'expected' && event.date === nextPaymentKey,
             isOverdue: event.type === 'expected' && compareDates(event.date, referenceKey) <= 0,
             comment: event.type === 'expected'
-                ? (event.date === nextPaymentKey ? tenant.next_payment_comment || '' : '')
+                ? (event.charge?.comment || (event.date === nextPaymentKey ? tenant.next_payment_comment || '' : ''))
                 : event.comment || ''
         };
     });
