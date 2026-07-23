@@ -4,7 +4,7 @@ import { Plus, Search, ExternalLink, X } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getScheduledPaymentDate } from '../../utils/paymentSchedule';
 import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subMonths, subYears, subWeeks, addDays } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { formatRussianDate } from '../../utils/russianDate';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Bike, Tenant } from '../../types';
 import { createTenant, fetchBikes, fetchDashboardTenants } from '../../features/tenants/api';
@@ -111,12 +111,12 @@ export default function AdminDashboard() {
             const d = parseISO(key);
 
             if (chartPeriod === 'week') {
-                const monthLabel = format(d, 'LLL', { locale: ru });
+                const monthLabel = formatRussianDate(d, 'LLL');
                 label = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
                 const endOfWeek = addDays(d, 6);
-                fullLabel = `${format(d, 'd MMM', { locale: ru })} - ${format(endOfWeek, 'd MMM', { locale: ru })}`;
+                fullLabel = `${formatRussianDate(d, 'd MMM')} - ${formatRussianDate(endOfWeek, 'd MMM')}`;
             } else if (chartPeriod === 'month') {
-                label = format(d, 'MMM yyyy', { locale: ru });
+                label = formatRussianDate(d, 'MMM yyyy');
                 fullLabel = label;
             } else if (chartPeriod === 'year') {
                 label = format(d, 'yyyy');

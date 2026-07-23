@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Bike, Calendar, AlertCircle, TrendingDown, CheckCircle2 } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../utils/calculateDebt';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { formatRussianDate } from '../utils/russianDate';
 import { fetchPublicTenantProfile } from '../features/tenants/api';
 
 export default function TenantPublic() {
@@ -146,7 +146,7 @@ export default function TenantPublic() {
                                     {isOverdue ? 'Просроченная задолженность' : hasDueToday ? 'К оплате сегодня' : 'Текущая задолженность'}
                                 </div>
                                 <div className="font-bold text-red-200 flex items-center justify-between text-sm">
-                                    <span>{oldestUnpaidDate ? `Не оплачено с ${format(oldestUnpaidDate, 'dd MMM yyyy', { locale: ru })}` : 'Ожидает оплаты'}</span>
+                                    <span>{oldestUnpaidDate ? `Не оплачено с ${formatRussianDate(oldestUnpaidDate, 'dd MMM yyyy')}` : 'Ожидает оплаты'}</span>
                                     <span className="bg-red-900/80 px-2 py-0.5 rounded border border-red-700/50">{isOverdue ? overdueAmount : totalDebt} zł</span>
                                 </div>
                             </div>
@@ -155,7 +155,7 @@ export default function TenantPublic() {
                         <div className="bg-lime-900/20 p-4 rounded-lg border border-lime-500/20 mb-4">
                             <div className="text-sm text-lime-300 mb-1">Следующий ожидаемый платеж</div>
                             <div className="font-bold text-lime-100 flex items-center justify-between">
-                                <span>{nextPaymentDate ? format(nextPaymentDate, 'dd MMM yyyy', { locale: ru }) : '—'}</span>
+                                <span>{nextPaymentDate ? formatRussianDate(nextPaymentDate, 'dd MMM yyyy') : '—'}</span>
                                 <span className="bg-lime-600 px-2 py-0.5 rounded text-sm">{expectedAmount} zł</span>
                             </div>
                         </div>
@@ -164,7 +164,7 @@ export default function TenantPublic() {
                             <div className="text-xs text-slate-400">Последний платеж</div>
                             <div className="text-sm text-slate-300">
                                 {lastPayment
-                                    ? `${format(new Date(lastPayment.payment_date), 'dd MMM', { locale: ru })} — ${lastPayment.amount} zł`
+                                    ? `${formatRussianDate(new Date(lastPayment.payment_date), 'dd MMM')} — ${lastPayment.amount} zł`
                                     : <span className="italic text-slate-400">Оплат не было</span>}
                             </div>
                         </div>

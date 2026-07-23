@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
 import { Plus, X, Landmark, Trash2, Edit2, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import TrendChart from '../../components/TrendChart';
 import { format, addMonths } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { formatRussianDate } from '../../utils/russianDate';
 import { deleteCredit, deleteCreditTransaction, fetchCredits as loadCredits, saveCredit, saveCreditTransaction } from '../../features/credits/api';
 import { generateCreditSchedule } from '../../features/credits/schedule';
 import type { Credit, CreditTransaction } from '../../types';
@@ -155,7 +155,7 @@ export default function AdminPayments() {
 
         while (current <= now) {
             const dStr = format(current, 'yyyy-MM-dd');
-            const label = format(current, 'MMM yyyy', { locale: ru });
+            const label = formatRussianDate(current, 'MMM yyyy');
             const val = credits.reduce((sum, c) => sum + calculateCreditDebt(c, current, creditTransactions.filter(tx => tx.credit_id === c.id)), 0);
             data.push({ date: dStr, label, debtAmount: val });
             current = addMonths(current, 1);
@@ -165,7 +165,7 @@ export default function AdminPayments() {
         if (!endLast || endLast.date.substring(0, 7) !== format(now, 'yyyy-MM')) {
              data.push({
                  date: format(now, 'yyyy-MM-dd'),
-                 label: format(now, 'MMM yyyy', { locale: ru }),
+                 label: formatRussianDate(now, 'MMM yyyy'),
                  debtAmount: credits.reduce((sum, c) => sum + calculateCreditDebt(c, now, creditTransactions.filter(tx => tx.credit_id === c.id)), 0)
              });
         }
@@ -206,21 +206,11 @@ export default function AdminPayments() {
 
                         {totalGraphData.length > 0 && (
                             <div className="w-full h-[250px] mt-6 relative z-0" style={{ outline: 'none' }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={totalGraphData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="colorTotalGraph" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="var(--or-primary)" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="var(--or-primary)" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" vertical={false} />
-                                        <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={15} minTickGap={20} />
-                                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toLocaleString('ru-RU')}`} />
-                                        <Tooltip cursor={{ stroke: 'var(--or-primary)' }} contentStyle={{ backgroundColor: '#ffffff', borderColor: '#03080a14', borderRadius: '0.5rem', color: '#03080a' }} itemStyle={{ color: 'var(--or-primary)', fontWeight: 'bold' }} formatter={(v) => [`€${v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Сумма долга']} labelFormatter={(label) => label} />
-                                        <Area type="monotone" dataKey="debtAmount" stroke="var(--or-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotalGraph)" activeDot={{ r: 5, fill: 'var(--or-primary)', stroke: '#fff', strokeWidth: 2 }} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                                <TrendChart
+                                    data={totalGraphData.map((point) => ({ label: point.label, value: point.debtAmount, detail: `${point.label}: €${point.debtAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }))}
+                                    valueFormatter={(value) => `€${value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                    ariaLabel="График общей суммы долга"
+                                />
                             </div>
                         )}
                     </div>
@@ -297,21 +287,12 @@ export default function AdminPayments() {
                         </h2>
 
                         <div className="h-[250px] min-h-[250px] focus:outline-none mb-8" style={{ outline: 'none' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={[...selectedSchedule].reverse().map(s => ({ label: s.graphLabel, debtAmount: s.amount }))} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorCreditGraph" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                    <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} minTickGap={20} />
-                                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toLocaleString('ru-RU')} zł`} />
-                                    <Tooltip cursor={{ stroke: '#f97316' }} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.625rem', color: '#f8fafc' }} itemStyle={{ color: '#fb923c' }} formatter={(v) => [`${v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`, 'Текущий долг']} labelFormatter={(label) => label} />
-                                    <Area type="monotone" dataKey="debtAmount" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorCreditGraph)" activeDot={{ r: 5 }} />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <TrendChart
+                                data={[...selectedSchedule].reverse().map((schedule) => ({ label: schedule.graphLabel, value: schedule.amount, detail: `${schedule.graphLabel}: ${schedule.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł` }))}
+                                accent="#f97316"
+                                valueFormatter={(value) => `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`}
+                                ariaLabel="График текущего долга"
+                            />
                         </div>
 
                         <h3 className="text-xl font-bold text-black dark:text-white mb-4">История операций</h3>

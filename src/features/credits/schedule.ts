@@ -1,5 +1,5 @@
 import { addDays, format, isAfter, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { formatRussianDate } from '../../utils/russianDate';
 import type { Credit, CreditTransaction } from '../../types';
 
 export interface CreditScheduleEntry {
@@ -24,7 +24,7 @@ export function generateCreditSchedule(credit: Credit, transactions: CreditTrans
         date: format(startDate, 'dd.MM.yyyy'),
         action: 'Начало кредита',
         amount: initialAmount,
-        graphLabel: format(startDate, 'MMM yyyy', { locale: ru })
+        graphLabel: formatRussianDate(startDate, 'MMM yyyy')
     }];
 
     let balance = initialAmount;
@@ -43,7 +43,7 @@ export function generateCreditSchedule(credit: Credit, transactions: CreditTrans
                 date: format(currentDate, 'dd.MM.yyyy'),
                 action: transaction.type === 'payment' ? 'Частичное погашение' : 'Добор кредита',
                 amount: balance,
-                graphLabel: format(currentDate, 'MMM yyyy', { locale: ru }),
+                graphLabel: formatRussianDate(currentDate, 'MMM yyyy'),
                 txId: transaction.id
             });
             transactionIndex += 1;

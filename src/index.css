@@ -104,16 +104,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Hide Recharts Focus Outline */
-  .recharts-wrapper *,
-  .recharts-surface {
-    outline: none !important;
-  }
-
-  .recharts-tooltip-cursor {
-    stroke: currentColor;
-    opacity: 0.15;
-  }
 }
 
 @layer utilities {

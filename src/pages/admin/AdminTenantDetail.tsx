@@ -4,7 +4,7 @@ import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt
 import { buildPaymentLedger } from '../../utils/paymentLedger';
 import { format } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getPaymentDayAbbreviation, getScheduledPaymentDate } from '../../utils/paymentSchedule';
-import { ru } from 'date-fns/locale';
+import { formatRussianDate } from '../../utils/russianDate';
 import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil, Phone, Send } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Bike, DeletableRecord, PaymentAdjustment, PaymentEditorValue, TenantDetail, TenantEditForm } from '../../types';
@@ -287,7 +287,7 @@ export default function AdminTenantDetail() {
                                             <div className="flex min-w-0 flex-1 justify-between items-center space-x-4 pt-1.5">
                                                 <div className="w-1/3">
                                                     <time className={isOverdue ? "text-red-400 font-bold text-sm" : "text-slate-500 dark:text-slate-400 font-medium text-sm"} dateTime={nextPaymentDate.toISOString()}>
-                                                        {format(new Date(nextPaymentDate), 'dd MMM yyyy', { locale: ru })}
+                                                        {formatRussianDate(new Date(nextPaymentDate), 'dd MMM yyyy')}
                                                     </time>
                                                 </div>
                                                 <div className="w-1/3 text-center">
@@ -319,7 +319,7 @@ export default function AdminTenantDetail() {
                                             </div>
                                             <div className="flex min-w-0 flex-1 justify-between items-center space-x-4 pt-1.5">
                                                 <div className="w-1/3">
-                                                    <time className="text-slate-600 dark:text-slate-300 font-medium text-sm" dateTime={payment.payment_date}>{format(new Date(payment.payment_date), 'dd MMM yyyy', { locale: ru })}</time>
+                                                <time className="text-slate-600 dark:text-slate-300 font-medium text-sm" dateTime={payment.payment_date}>{formatRussianDate(new Date(payment.payment_date), 'dd MMM yyyy')}</time>
                                                 </div>
                                                 <div className="w-1/3 text-center">
                                                     <span className="font-bold text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-sm">{payment.amount}&nbsp;zł</span>
