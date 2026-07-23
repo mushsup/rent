@@ -47,7 +47,7 @@ export default function Layout() {
         localStorage.setItem('theme', nextTheme ? 'dark' : 'light');
     };
 
-    if (loading) return <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center text-gray-900 dark:text-white">Загрузка...</div>;
+    if (loading) return <div className="min-h-screen bg-white dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-white">Загрузка...</div>;
 
     if (!session) {
         return <Navigate to="/admin/login" replace />;
@@ -59,30 +59,30 @@ export default function Layout() {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col font-sans text-gray-800 dark:text-gray-100">
-            <header className="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+        <div className="min-h-screen bg-white dark:bg-zinc-900 flex flex-col font-sans text-zinc-800 dark:text-zinc-100">
+            <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-zinc-50/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/85">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex flex-row justify-between items-center gap-2">
                     <div className="flex items-center space-x-2 sm:space-x-6">
-                        <div className="flex items-center text-indigo-600 dark:text-indigo-400 mr-3">
+                        <div className="flex items-center text-emerald-600 dark:text-emerald-400 mr-3">
                             <Bike className="w-7 h-7 flex-shrink-0" />
-                            <h1 className="ml-2 text-lg font-bold text-gray-900 dark:text-white hidden lg:block">E-Bike</h1>
+                            <h1 className="ml-2 text-lg font-bold text-zinc-900 dark:text-white hidden lg:block">E-Bike</h1>
                         </div>
                         <nav className="flex space-x-1">
                             <button
                                 onClick={() => navigate('/admin')}
-                                className={`${location.pathname === '/admin' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700 hover:text-gray-900 dark:text-white'} px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Арендаторы
                             </button>
                             <button
                                 onClick={() => navigate('/admin/bikes')}
-                                className={`${location.pathname === '/admin/bikes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700 hover:text-gray-900 dark:text-white'} px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/bikes' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Велосипеды
                             </button>
                             <button
                                 onClick={() => navigate('/admin/payments')}
-                                className={`${location.pathname === '/admin/payments' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-700 hover:text-gray-900 dark:text-white'} px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/payments' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Платежи
                             </button>
@@ -91,14 +91,14 @@ export default function Layout() {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={toggleTheme}
-                            className="flex items-center justify-center bg-gray-100/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600/50 p-2 rounded-md transition-colors text-gray-700 dark:text-gray-400 dark:hover:text-white"
+                            className="flex items-center justify-center rounded-lg border border-zinc-200 bg-white/70 p-2 text-zinc-700 transition-colors hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
                             title="Переключить тему"
                         >
                             {isDark ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
                         </button>
                         <button
                             onClick={handleLogout}
-                            className="flex items-center justify-center text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-gray-100/50 dark:bg-gray-700/50 hover:bg-red-100 dark:hover:bg-red-900/40 p-2 rounded-md border border-gray-200 dark:border-gray-600/50"
+                            className="flex items-center justify-center rounded-lg border border-zinc-200 bg-white/70 p-2 text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                             title="Выйти"
                         >
                             <LogOut className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />

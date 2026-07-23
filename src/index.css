@@ -3,14 +3,50 @@
 @variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  :root {
+    color-scheme: light;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors;
+    @apply bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 transition-colors;
+    min-width: 320px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: #a7f3d0;
+    color: #022c22;
+  }
+
+  .dark ::selection {
+    background: #064e3b;
+    color: #ecfdf5;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Hide Recharts Focus Outline */
   .recharts-wrapper *,
   .recharts-surface {
     outline: none !important;
+  }
+
+  .recharts-tooltip-cursor {
+    stroke: currentColor;
+    opacity: 0.15;
   }
 }
 
@@ -28,7 +64,7 @@
   }
 
   .animate-fade-in-up {
-    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
   }
 
