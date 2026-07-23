@@ -5,6 +5,7 @@ node_modules/
 dist/
 *.local
 .vite/
+.netlify/
 
 # Environment files and secrets
 .env
