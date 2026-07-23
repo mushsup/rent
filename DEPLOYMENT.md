@@ -1,74 +1,53 @@
-# Deployment to Cloudflare Pages
+# Deployment to Netlify
 
-This project is a static Vite application. Cloudflare Pages builds the frontend; Supabase remains the database and authentication provider.
+This is a static Vite application. Netlify hosts the frontend; Supabase remains the database and authentication provider.
 
-## 1. Prepare the repository
+## First-time setup
 
-1. Push this repository to GitHub.
-2. Keep `.env` out of Git. Commit only `.env.example`.
-3. Confirm that `npm run build` succeeds locally.
+Install dependencies and authorize the Netlify CLI once:
 
-## 2. Create the Cloudflare Pages project
+```bash
+npm install
+npx netlify login
+```
 
-1. Open [Cloudflare Dashboard](https://dash.cloudflare.com/) and select **Workers & Pages**.
-2. Select **Create application** → **Pages** → **Connect to Git**.
-3. Select the GitHub repository and the production branch, usually `main`.
-4. Use these build settings:
+The browser will open for authorization. On the first deploy, Netlify asks whether to create a new site; confirm the default team and a site name.
 
-   - Framework preset: `Vite`
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Node.js version: current LTS, if Cloudflare asks for one
+After that, every production deploy is one command:
 
-5. Add these production environment variables under **Settings → Environment variables**:
+```bash
+npm run deploy
+```
 
-   - `VITE_SUPABASE_URL`: the public Supabase project URL
-   - `VITE_SUPABASE_ANON_KEY`: the public anon/publishable key
-   - `VITE_BASE_PATH`: `/` for the default `*.pages.dev` domain
+The command builds the app and publishes `dist/` to Netlify.
 
-6. Save and deploy.
+## Production environment variables
 
-The current repository default remains `/rent/` for the existing deployment. The Cloudflare variable changes the Vite base to `/` without requiring a source-code edit.
+In Netlify, open **Site configuration → Environment variables** and add:
 
-## 3. Configure Supabase Auth
+- `VITE_SUPABASE_URL`: the public Supabase project URL.
+- `VITE_SUPABASE_ANON_KEY`: the public anon/publishable key.
+
+`netlify.toml` sets `VITE_BASE_PATH=/` for the production domain. The local `.env` may keep `/rent/`.
+
+Never add the Supabase service-role key to Netlify or the repository. The browser may use only the anon/publishable key, protected by Row Level Security.
+
+## Supabase Auth
 
 In Supabase, open **Authentication → URL Configuration**:
 
-1. Set **Site URL** to the final Cloudflare URL, for example `https://your-project.pages.dev/`.
+1. Set **Site URL** to the final Netlify URL, for example `https://your-site.netlify.app/`.
 2. Add the final URL to **Redirect URLs** if the authentication flow uses redirects.
-3. Keep the existing local URL in the list while testing locally.
+3. Keep the local URL while testing locally.
 
-Do not add the service-role key to Cloudflare or the repository. The browser may use only the anon/publishable key, protected by Row Level Security.
-
-## 4. Apply database migrations
+## Database migrations
 
 Apply every SQL migration in `src/lib/migrations/` to the production Supabase project in filename order. Do not edit migrations that have already been applied; add a new migration for later changes.
 
-For the isolated beta project, use the repository CLI workflow:
+## Verify after deployment
 
-```bash
-npm run db:login
-npm run db:link:beta
-npm run db:pull:beta
-npm run db:migrations
-npm run db:push:beta
-```
+Check the public home page, `/admin/login`, the authenticated dashboard, tenant detail, payments, anonymous tenant links, and the browser console. The service worker caches only same-origin static assets; Supabase requests remain live.
 
-`db:pull:beta` captures the beta schema that was initially created through SQL Editor. Future migration files belong in `supabase/migrations/` and are applied with `db:push:beta`. The fixed project reference in the scripts prevents an accidental production target. Login tokens, database passwords, and `.temp` link metadata are not committed.
+## Custom domain
 
-## 5. Verify after deployment
-
-Check these URLs and flows:
-
-1. Public home page.
-2. `/admin/login`.
-3. Authenticated admin dashboard.
-4. Tenant detail, payment creation, editing, and deletion.
-5. Anonymous tenant public link.
-6. The browser console has no Supabase or service-worker errors.
-
-The service worker caches only same-origin static frontend assets. Supabase requests are deliberately not cached, so payment and tenant data remain live.
-
-## 6. Custom domain (optional)
-
-In Cloudflare Pages, open **Custom domains** and add your domain. Cloudflare provisions HTTPS automatically once DNS is configured.
+In Netlify, open **Domain management → Add a domain**. Netlify provisions HTTPS automatically once DNS is configured.

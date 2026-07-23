@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "npx --yes netlify-cli deploy --prod --build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

@@ -111,6 +111,7 @@ Available scripts:
 
 - `npm run dev` — start Vite with HMR.
 - `npm run build` — create the production bundle in `dist/`.
+- `npm run deploy` — build and deploy the production bundle to Netlify.
 - `npm run preview` — serve the production bundle locally.
 - `npm run lint` — run ESLint across the repository.
 - `npm run typecheck` — run TypeScript without emitting files.
