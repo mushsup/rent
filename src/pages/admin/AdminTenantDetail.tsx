@@ -444,6 +444,9 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                     const isExpected = entry.type === 'expected';
                     const isAdjustment = entry.type === 'adjustment';
                     const payment = !isExpected && !isAdjustment ? payments.find(item => item.id === entry.paymentId) : null;
+                    const editablePayment = isExpected
+                        ? { amount: entry.amount, payment_date: entry.dateKey, comment: entry.comment || '', isExpected: true }
+                        : payment;
                     const isCharge = isAdjustment && entry.direction === 'charge';
                     const amountPrefix = isExpected || isCharge ? '−' : '+';
                     const amountClass = isExpected
@@ -470,15 +473,15 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                             <span className={`pt-1 whitespace-nowrap text-sm font-semibold ${entry.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}`}>
                                 {balanceLabel}
                             </span>
-                            {(isAdjustment || payment) && (
+                            {(isExpected || isAdjustment || payment) && (
                                 <div className="relative flex-shrink-0">
                                     <details className="group/menu">
                                         <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white" title="Действия">
                                             <MoreHorizontal className="h-5 w-5" />
                                         </summary>
                                         <div className="absolute right-0 top-9 z-10 w-36 rounded-md border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                                            <button onClick={() => isAdjustment ? onEditAdjustment({ id: entry.adjustmentId, amount: entry.amount, direction: entry.direction, adjustment_date: entry.dateKey, comment: entry.comment || '' }) : onEditPayment(payment)} className="block w-full rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">Изменить</button>
-                                            <button onClick={() => isAdjustment ? onDeleteAdjustment(entry.adjustmentId) : onDeletePayment(entry.paymentId)} className="block w-full rounded px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40">Удалить</button>
+                                            <button onClick={() => isAdjustment ? onEditAdjustment({ id: entry.adjustmentId, amount: entry.amount, direction: entry.direction, adjustment_date: entry.dateKey, comment: entry.comment || '' }) : onEditPayment(editablePayment)} className="block w-full rounded px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">Изменить</button>
+                                            {!isExpected && <button onClick={() => isAdjustment ? onDeleteAdjustment(entry.adjustmentId) : onDeletePayment(entry.paymentId)} className="block w-full rounded px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40">Удалить</button>}
                                         </div>
                                     </details>
                                 </div>
