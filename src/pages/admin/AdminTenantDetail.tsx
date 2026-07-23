@@ -435,28 +435,34 @@ function BikeSelector({ bikes, selectedBikeId, onChange }) {
 }
 
 function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, onEditAdjustment, onDeleteAdjustment }) {
-    const visibleEntries = [...entries].filter(entry => entry.type !== 'expected').reverse();
+    const visibleEntries = [...entries].reverse();
 
     return (
         <div className="flow-root max-h-[32rem] overflow-y-auto pr-1">
             <ul className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                 {visibleEntries.map((entry) => {
+                    const isExpected = entry.type === 'expected';
                     const isAdjustment = entry.type === 'adjustment';
-                    const payment = !isAdjustment ? payments.find(item => item.id === entry.paymentId) : null;
+                    const payment = !isExpected && !isAdjustment ? payments.find(item => item.id === entry.paymentId) : null;
                     const isCharge = isAdjustment && entry.direction === 'charge';
-                    const amountPrefix = isCharge ? '+' : '−';
-                    const amountClass = isAdjustment ? 'text-slate-500 dark:text-slate-300' : 'text-lime-700 dark:text-lime-400';
+                    const amountPrefix = isExpected || isCharge ? '−' : '+';
+                    const amountClass = isExpected
+                        ? 'text-slate-700 dark:text-white'
+                        : isAdjustment
+                            ? 'text-slate-500 dark:text-slate-300'
+                            : 'text-lime-700 dark:text-lime-400';
                     const balanceLabel = entry.balance > 0 ? `${entry.balance} zł` : '0 zł';
 
                     return (
                         <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId}`} className="group grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-3 py-4 first:pt-1 last:pb-1">
-                            <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center ${isAdjustment ? 'text-slate-500 dark:text-slate-400' : 'text-lime-600 dark:text-lime-400'}`}>
-                                {isAdjustment ? <BikeIcon className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
+                            <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center ${isExpected ? 'text-slate-500 dark:text-white' : isAdjustment ? 'text-slate-500 dark:text-slate-400' : 'text-lime-600 dark:text-lime-400'}`}>
+                                {isExpected || isAdjustment ? <BikeIcon className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                     <span className={`font-semibold ${amountClass}`}>{amountPrefix}{entry.amount} zł</span>
                                     <time className="text-xs text-slate-500 dark:text-slate-400" dateTime={entry.dateKey}>{format(entry.date, 'dd.MM.yy')}</time>
+                                    {!isExpected && !isAdjustment && <span className="text-xs text-lime-700 dark:text-lime-400">Оплата</span>}
                                     {isAdjustment && <span className="text-xs text-slate-500 dark:text-slate-400">Корректировка</span>}
                                 </div>
                                 {entry.comment && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{entry.comment}</p>}
