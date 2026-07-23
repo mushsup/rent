@@ -210,15 +210,15 @@ export default function AdminPayments() {
                                     <AreaChart data={totalGraphData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorTotalGraph" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#bef264" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#bef264" stopOpacity={0} />
+                                                <stop offset="5%" stopColor="var(--or-primary)" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="var(--or-primary)" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" vertical={false} />
                                         <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={15} minTickGap={20} />
                                         <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toLocaleString('ru-RU')}`} />
-                                        <Tooltip cursor={{ stroke: '#bef264' }} contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '0.625rem', color: '#0f172a' }} itemStyle={{ color: '#65a30d', fontWeight: 'bold' }} formatter={(v) => [`€${v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Сумма долга']} labelFormatter={(label) => label} />
-                                        <Area type="monotone" dataKey="debtAmount" stroke="#a3e635" strokeWidth={3} fillOpacity={1} fill="url(#colorTotalGraph)" activeDot={{ r: 5, fill: '#a3e635', stroke: '#fff', strokeWidth: 2 }} />
+                                        <Tooltip cursor={{ stroke: 'var(--or-primary)' }} contentStyle={{ backgroundColor: '#ffffff', borderColor: '#03080a14', borderRadius: '0.5rem', color: '#03080a' }} itemStyle={{ color: 'var(--or-primary)', fontWeight: 'bold' }} formatter={(v) => [`€${v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Сумма долга']} labelFormatter={(label) => label} />
+                                        <Area type="monotone" dataKey="debtAmount" stroke="var(--or-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotalGraph)" activeDot={{ r: 5, fill: 'var(--or-primary)', stroke: '#fff', strokeWidth: 2 }} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>

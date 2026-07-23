@@ -16,10 +16,10 @@ function App() {
     <>
       <Toaster position="top-right" toastOptions={{
         style: {
-          background: '#0f172a',
+          background: '#03080a',
           color: '#fff',
-          border: '1px solid #334155',
-          borderRadius: '10px',
+          border: '1px solid #fcfcfe14',
+          borderRadius: '6px',
         },
       }} />
       <Suspense fallback={<div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-slate-950 dark:text-white">Загрузка...</div>}>

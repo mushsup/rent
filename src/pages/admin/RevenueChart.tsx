@@ -24,8 +24,8 @@ export default function RevenueChart({ data }: Props) {
             <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 10 }}>
                 <defs>
                     <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#bef264" stopOpacity={0.28} />
-                        <stop offset="95%" stopColor="#bef264" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--or-primary)" stopOpacity={0.28} />
+                        <stop offset="95%" stopColor="var(--or-primary)" stopOpacity={0} />
                     </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
@@ -41,11 +41,11 @@ export default function RevenueChart({ data }: Props) {
                 <YAxis hide />
                 <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.625rem', color: '#f8fafc', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)' }}
-                    itemStyle={{ color: '#bef264' }}
+                    itemStyle={{ color: 'var(--or-primary)' }}
                     formatter={(value) => [`${Number(value).toLocaleString('ru-RU')} zł`, 'Доход']}
                     labelFormatter={(label) => data.find((point) => point.date === label)?.fullLabel || label}
                 />
-                <Area type="monotone" dataKey="amount" stroke="#bef264" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" activeDot={{ className: 'focus:outline-none', style: { outline: 'none' } }} />
+                <Area type="monotone" dataKey="amount" stroke="var(--or-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" activeDot={{ className: 'focus:outline-none', style: { outline: 'none' } }} />
             </AreaChart>
         </ResponsiveContainer>
     );

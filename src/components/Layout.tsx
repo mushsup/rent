@@ -60,8 +60,8 @@ export default function Layout() {
 
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col font-sans text-slate-950 dark:text-slate-100">
-            <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-slate-50/85 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/85">
-                <div className="max-w-7xl mx-auto px-4 py-3 flex flex-row justify-between items-center gap-2">
+            <header className="sticky top-0 z-40 h-14 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+                <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex flex-row justify-between items-center gap-2">
                     <div className="flex items-center space-x-2 sm:space-x-6">
                         <div className="flex items-center text-lime-600 dark:text-lime-400 mr-3">
                             <Bike className="w-7 h-7 flex-shrink-0" />
@@ -70,19 +70,19 @@ export default function Layout() {
                         <nav className="flex space-x-1">
                             <button
                                 onClick={() => navigate('/admin')}
-                                className={`${location.pathname === '/admin' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 h-8 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Арендаторы
                             </button>
                             <button
                                 onClick={() => navigate('/admin/bikes')}
-                                className={`${location.pathname === '/admin/bikes' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/bikes' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 h-8 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Велосипеды
                             </button>
                             <button
                                 onClick={() => navigate('/admin/payments')}
-                                className={`${location.pathname === '/admin/payments' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/payments' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 h-8 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Платежи
                             </button>
@@ -91,14 +91,14 @@ export default function Layout() {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={toggleTheme}
-                            className="flex items-center justify-center rounded-lg border border-slate-200 bg-white/70 p-2 text-slate-700 transition-colors hover:bg-white dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             title="Переключить тему"
                         >
                             {isDark ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
                         </button>
                         <button
                             onClick={handleLogout}
-                            className="flex items-center justify-center rounded-lg border border-slate-200 bg-white/70 p-2 text-slate-700 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                            className="flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-slate-700 transition-colors hover:bg-red-50 hover:text-red-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                             title="Выйти"
                         >
                             <LogOut className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
