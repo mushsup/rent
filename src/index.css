@@ -14,7 +14,7 @@
     --or-cloud: #fcfcfe;
     --or-grape: #7624f4;
     --or-volt: #c8ff00;
-    --or-primary: var(--or-grape);
+    --or-primary: var(--or-volt);
 
     --color-slate-50: #fcfcfe;
     --color-slate-100: #f4f4f5;
@@ -28,17 +28,17 @@
     --color-slate-900: #181a1c;
     --color-slate-950: #03080a;
 
-    --color-lime-50: #f8f2ff;
-    --color-lime-100: #f1e7ff;
-    --color-lime-200: #e5d1ff;
-    --color-lime-300: #bd8cff;
-    --color-lime-400: #9955f5;
-    --color-lime-500: #7624f4;
-    --color-lime-600: #7624f4;
-    --color-lime-700: #6419d7;
-    --color-lime-800: #4f14aa;
-    --color-lime-900: #7624f4;
-    --color-lime-950: #4f14aa;
+    --color-lime-50: #f4ffd1;
+    --color-lime-100: #efffc2;
+    --color-lime-200: #e5ff8a;
+    --color-lime-300: #c8ff00;
+    --color-lime-400: #c8ff00;
+    --color-lime-500: #c8ff00;
+    --color-lime-600: #c8ff00;
+    --color-lime-700: #a6d600;
+    --color-lime-800: #7fa300;
+    --color-lime-900: #c8ff00;
+    --color-lime-950: #7fa300;
   }
 
   .dark {
@@ -78,7 +78,7 @@
   }
 
   ::selection {
-    background: #e5d1ff;
+    background: #c8ff00;
     color: #03080a;
   }
 
