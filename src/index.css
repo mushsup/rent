@@ -15,19 +15,28 @@
   }
 
   body {
-    @apply bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 transition-colors;
+    @apply bg-zinc-100 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 transition-colors;
     min-width: 320px;
     -webkit-font-smoothing: antialiased;
   }
 
   ::selection {
-    background: #a7f3d0;
-    color: #022c22;
+    background: #d9f99d;
+    color: #1a2e05;
   }
 
   .dark ::selection {
-    background: #064e3b;
-    color: #ecfdf5;
+    background: #365314;
+    color: #f7fee7;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #a1a1aa transparent;
+  }
+
+  .dark * {
+    scrollbar-color: #52525b transparent;
   }
 
   button,

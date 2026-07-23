@@ -22,7 +22,7 @@ function App() {
           borderRadius: '10px',
         },
       }} />
-      <Suspense fallback={<div className="min-h-screen bg-white dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-white">Загрузка...</div>}>
+      <Suspense fallback={<div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center text-zinc-950 dark:text-white">Загрузка...</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/admin/login" element={<AdminLogin />} />

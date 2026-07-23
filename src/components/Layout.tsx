@@ -47,7 +47,7 @@ export default function Layout() {
         localStorage.setItem('theme', nextTheme ? 'dark' : 'light');
     };
 
-    if (loading) return <div className="min-h-screen bg-white dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-white">Загрузка...</div>;
+    if (loading) return <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center text-zinc-950 dark:text-white">Загрузка...</div>;
 
     if (!session) {
         return <Navigate to="/admin/login" replace />;
@@ -59,30 +59,30 @@ export default function Layout() {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-zinc-900 flex flex-col font-sans text-zinc-800 dark:text-zinc-100">
+        <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col font-sans text-zinc-950 dark:text-zinc-100">
             <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-zinc-50/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/85">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex flex-row justify-between items-center gap-2">
                     <div className="flex items-center space-x-2 sm:space-x-6">
-                        <div className="flex items-center text-emerald-600 dark:text-emerald-400 mr-3">
+                        <div className="flex items-center text-lime-600 dark:text-lime-400 mr-3">
                             <Bike className="w-7 h-7 flex-shrink-0" />
                             <h1 className="ml-2 text-lg font-bold text-zinc-900 dark:text-white hidden lg:block">E-Bike</h1>
                         </div>
                         <nav className="flex space-x-1">
                             <button
                                 onClick={() => navigate('/admin')}
-                                className={`${location.pathname === '/admin' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin' ? 'bg-lime-300 text-zinc-950 shadow-sm dark:bg-lime-300' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Арендаторы
                             </button>
                             <button
                                 onClick={() => navigate('/admin/bikes')}
-                                className={`${location.pathname === '/admin/bikes' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/bikes' ? 'bg-lime-300 text-zinc-950 shadow-sm dark:bg-lime-300' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Велосипеды
                             </button>
                             <button
                                 onClick={() => navigate('/admin/payments')}
-                                className={`${location.pathname === '/admin/payments' ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-950' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                                className={`${location.pathname === '/admin/payments' ? 'bg-lime-300 text-zinc-950 shadow-sm dark:bg-lime-300' : 'text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white'} px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Платежи
                             </button>

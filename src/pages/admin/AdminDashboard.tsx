@@ -176,14 +176,14 @@ export default function AdminDashboard() {
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {/* Chart Card */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 shadow-sm lg:col-span-2 flex flex-col h-full min-h-[240px]">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm lg:col-span-2 flex flex-col h-full min-h-[240px]">
                     <div className="flex justify-end items-center mb-4">
-                        <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-700">
+                        <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-800">
                             {['week', 'month', 'year'].map((period) => (
                                 <button
                                     key={period}
                                     onClick={() => setChartPeriod(period)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
                                 >
                                     {period === 'week' ? 'Нед' : period === 'month' ? 'Мес' : 'Год'}
                                 </button>
@@ -198,18 +198,18 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Occupancy/Revenue Card */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 transition-all shadow-sm flex flex-col h-full relative overflow-hidden min-h-[240px]">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 transition-all shadow-sm flex flex-col h-full relative overflow-hidden min-h-[240px]">
                     {/* Top Controls: Tabs */}
-                    <div className="absolute top-4 right-4 z-10 flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-700">
+                    <div className="absolute top-4 right-4 z-10 flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-800">
                         <button
                             onClick={() => setStatsTab('percent')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
                         >
                             %
                         </button>
                         <button
                             onClick={() => setStatsTab('amount')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
                         >
                             zł
                         </button>
@@ -301,7 +301,7 @@ export default function AdminDashboard() {
                         </div>
                         <input
                             type="text"
-                            className="block w-full h-full rounded-md border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white pl-10 py-2 border sm:text-sm focus:border-emerald-500 focus:ring-emerald-500 placeholder-zinc-500"
+                            className="block w-full h-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white pl-10 py-2 border sm:text-sm focus:border-lime-500 focus:ring-lime-500 placeholder-zinc-500"
                             placeholder="Поиск"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -315,9 +315,9 @@ export default function AdminDashboard() {
                             aria-checked={showArchived}
                             onClick={() => setShowArchived((current) => !current)}
                             aria-label="Показывать архивных"
-                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400' : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'}`}
+                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-500 text-lime-700 dark:text-lime-400' : 'bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'}`}
                         >
-                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-emerald-600' : 'bg-zinc-300 dark:bg-zinc-600'}`} aria-hidden="true">
+                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-lime-600' : 'bg-zinc-300 dark:bg-zinc-600'}`} aria-hidden="true">
                                 <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${showArchived ? 'translate-x-4' : 'translate-x-0.5'}`} />
                             </span>
                             <span>Архивные</span>
@@ -326,7 +326,7 @@ export default function AdminDashboard() {
 
                     <button
                         onClick={() => setIsTenantModalOpen(true)}
-                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-3 sm:px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-lime-600 px-3 sm:px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-lime-700 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
                     >
                         <Plus className="h-5 w-5 sm:mr-1.5" />
                         <span className="hidden sm:inline">Добавить</span>
@@ -338,14 +338,14 @@ export default function AdminDashboard() {
                 {[
                     { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
                     { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
-                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-emerald-500', suffix: '' },
+                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-lime-500', suffix: '' },
                     { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' }
                 ].map(card => (
                     <button
                         key={card.id}
                         type="button"
                         onClick={() => setTenantFilter(current => current === card.id ? 'all' : card.id)}
-                        className={`rounded-xl border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-500'}`}
+                        className={`rounded-lg border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/20' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-500'}`}
                     >
                         <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">{card.label}</div>
                         <div className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}{card.suffix}</div>
@@ -361,7 +361,7 @@ export default function AdminDashboard() {
                         <div
                             key={tenant.id}
                             onClick={() => handleRowClick(tenant)}
-                            className="rounded-lg p-3 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm cursor-pointer flex items-center justify-between gap-4"
+                            className="rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm cursor-pointer flex items-center justify-between gap-4"
                         >
                             <div className="min-w-0 flex-1">
                                 <div className="font-bold text-zinc-900 dark:text-white truncate flex items-center gap-2">
@@ -396,9 +396,9 @@ export default function AdminDashboard() {
             <div className="mt-8 hidden sm:flex flex-col">
                 <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8 pb-32">
                     <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                        <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-black ring-opacity-5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-black ring-opacity-5 rounded-lg border border-zinc-200 dark:border-zinc-800">
                             <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-700">
-                                <thead className="bg-white dark:bg-zinc-800">
+                                <thead className="bg-white dark:bg-zinc-900">
                                     <tr>
                                         <th className="py-3 pl-4 pr-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider sm:pl-6">Имя</th>
                                         <th className="px-3 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Велосипед</th>
@@ -421,7 +421,7 @@ export default function AdminDashboard() {
                                                                 {tenant.is_archived && <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Архив</span>}
                                                             </div>
                                                             <div onClick={e => e.stopPropagation()}>
-                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-emerald-400 flex items-center mt-0.5">
+                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-lime-400 flex items-center mt-0.5">
                                                                     /{tenant.slug} <ExternalLink className="w-3 h-3 ml-1" />
                                                                 </Link>
                                                             </div>
@@ -472,7 +472,7 @@ export default function AdminDashboard() {
                 <div className="fixed inset-0 z-50">
                     <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsTenantModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative pointer-events-auto mt-8 max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto mt-8 max-h-[90vh] overflow-y-auto">
                             <TenantModal
                                 bikes={bikes}
                                 onClose={() => setIsTenantModalOpen(false)}
@@ -543,14 +543,14 @@ function TenantModal({ onClose, onSuccess, bikes }) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Имя арендатора</label>
-                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" />
+                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Псевдоним ссылки</label>
                         <div className="mt-1 flex rounded-md">
                             <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700 px-3 text-zinc-500 dark:text-zinc-400 sm:text-sm">/</span>
-                            <input type="text" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" placeholder="ivan-123" />
+                            <input type="text" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="ivan-123" />
                         </div>
                     </div>
                     <div>
@@ -558,7 +558,7 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                         <select
                             value={formData.bike_id}
                             onChange={handleBikeChange}
-                            className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm"
+                            className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
                         >
                             <option value="">Нет велосипеда</option>
                             {sortedBikes.map(b => (
@@ -570,36 +570,36 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Дата первого платежа</label>
-                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Это ожидаемое начисление, а не уже полученная оплата.</p>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">День еженедельного платежа</label>
-                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm">
+                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
                             {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Телефон</label>
-                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" />
+                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Telegram</label>
-                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" />
+                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Еженедельный платеж (zł)</label>
-                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" placeholder="150" />
+                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="150" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Депозит (zł)</label>
-                    <input type="number" required value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:text-sm" placeholder="Стоимость залога" />
+                    <input type="number" required value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Стоимость залога" />
                 </div>
 
 
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
+                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
                         Создать
                     </button>
                     <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md bg-zinc-200 dark:bg-zinc-700 px-4 py-2 text-base font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
