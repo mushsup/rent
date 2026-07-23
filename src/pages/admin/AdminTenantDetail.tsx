@@ -452,6 +452,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                             ? 'text-slate-500 dark:text-slate-300'
                             : 'text-lime-700 dark:text-lime-400';
                     const balanceLabel = entry.balance > 0 ? `${entry.balance} zł` : '0 zł';
+                    const displayComment = entry.comment === 'Автоматически создано' ? '' : entry.comment;
 
                     return (
                         <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId}`} className="group grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-3 py-4 first:pt-1 last:pb-1">
@@ -465,7 +466,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                                     {!isExpected && !isAdjustment && <span className="text-xs text-lime-700 dark:text-lime-400">Оплата</span>}
                                     {isAdjustment && <span className="text-xs text-slate-500 dark:text-slate-400">Корректировка</span>}
                                 </div>
-                                {entry.comment && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{entry.comment}</p>}
+                                {displayComment && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{displayComment}</p>}
                             </div>
                             <span className={`pt-1 whitespace-nowrap text-sm font-semibold ${entry.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}`}>
                                 {balanceLabel}
