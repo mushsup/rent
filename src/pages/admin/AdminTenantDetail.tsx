@@ -1,20 +1,17 @@
-/* eslint-disable react/prop-types */
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { buildPaymentLedger } from '../../utils/paymentLedger';
 import { format } from 'date-fns';
-import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getPaymentDay, getPaymentDayAbbreviation } from '../../utils/paymentSchedule';
+import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getPaymentDayAbbreviation, getScheduledPaymentDate } from '../../utils/paymentSchedule';
 import { ru } from 'date-fns/locale';
 import { ArrowLeft, Edit2, Trash2, Calendar, DollarSign, AlertCircle, X, Archive, ChevronDown, CheckCircle, Pencil, Phone, Send } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Bike, DeletableRecord, PaymentAdjustment, PaymentEditorValue, TenantDetail, TenantEditForm } from '../../types';
+import { deleteTenant, deleteTenantRecord, fetchBikes, fetchTenantDetail, saveAdjustment, savePayment, setTenantArchived, updateTenantProfile } from '../../features/tenants/api';
 
-function normalizeTelegramUsername(value) {
-    return (value || '')
-        .trim()
-        .replace(/^https?:\/\/t\.me\//i, '')
-        .replace(/^@/, '');
+function normalizeTelegramUsername(value: string | null | undefined): string {
+    return (value || '').trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '');
 }
 
 function getPhoneHref(phone) {
@@ -28,59 +25,37 @@ export default function AdminTenantDetail() {
 
     const [isEditing, setIsEditing] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [editingPayment, setEditingPayment] = useState(null);
+    const [editingPayment, setEditingPayment] = useState<PaymentEditorValue | null>(null);
     const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
-    const [editingAdjustment, setEditingAdjustment] = useState(null);
+    const [editingAdjustment, setEditingAdjustment] = useState<PaymentAdjustment | null>(null);
     const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [deletingRecord, setDeletingRecord] = useState(null);
-    const [editForm, setEditForm] = useState(null);
+    const [deletingRecord, setDeletingRecord] = useState<DeletableRecord | null>(null);
+    const [editForm, setEditForm] = useState<TenantEditForm | null>(null);
 
-    const { data: bikes = [], isError: bikesError } = useQuery({
+    const { data: bikes = [], isError: bikesError } = useQuery<Bike[]>({
         queryKey: ['bikes'],
-        queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('id, model, type, status');
-            return data || [];
-        }
+        queryFn: fetchBikes
     });
 
-    const { data: tenant, isLoading: loading, isError: tenantError, error: tenantQueryError } = useQuery({
+    const { data: tenant, isLoading: loading, isError: tenantError, error: tenantQueryError } = useQuery<TenantDetail | null>({
         queryKey: ['tenant', id],
-        queryFn: async () => {
-            await supabase.rpc('ensure_tenant_payment_charges', { p_tenant_id: id });
-            const { data } = await supabase
-                .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, phone, telegram_username, next_payment_date, next_payment_amount, next_payment_comment, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, comment, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), payment_charges:tenant_payment_charges(id, due_date, amount, comment, status), payment_adjustments:tenant_payment_adjustments(id, direction, amount, adjustment_date, comment), bikes(id, model, type, status)')
-                .eq('id', id)
-                .single();
-
-            if (data) {
-                data.payments.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-            }
-            return data;
-        },
-        onSuccess: (data) => {
-            if (data && !editForm) {
-                setEditForm({ ...data, bike_id: data.bikes?.id || '', weekly_payment: data.weekly_payment ?? data.bikes?.price ?? '' });
-            }
-        }
+        queryFn: () => fetchTenantDetail(id!),
+        enabled: Boolean(id)
     });
 
     useEffect(() => {
         if (tenant && !editForm) {
-            setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? tenant.bikes?.price ?? '' });
+            setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? '' });
         }
     }, [tenant, editForm]);
 
     const confirmDeleteRecord = async () => {
         if (!deletingRecord) return;
 
-        const table = deletingRecord.type === 'adjustment'
-            ? 'tenant_payment_adjustments'
-            : 'payments';
-        const { error } = await supabase.from(table).delete().eq('id', deletingRecord.id);
-
-        if (error) {
+        try {
+            await deleteTenantRecord(deletingRecord);
+        } catch (error) {
             alert(error.message);
             return;
         }
@@ -92,63 +67,44 @@ export default function AdminTenantDetail() {
 
     const handleUpdateTenant = async (e) => {
         e.preventDefault();
+        if (!tenant || !editForm) return;
         const paymentDay = Number(editForm.payment_day) || DEFAULT_PAYMENT_DAY;
         const currentPaymentDay = Number(tenant.payment_day) || getPaymentDay(tenant.next_payment_date || new Date());
         const weeklyPayment = Number(editForm.weekly_payment) || 0;
-        const nextPaymentDate = paymentDay === currentPaymentDay
-            ? tenant.next_payment_date || null
-            : getNextPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
-        const { error: profileError } = await supabase.rpc('update_tenant_profile', {
-            p_tenant_id: id,
-            p_name: editForm.name,
-            p_slug: editForm.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
-            p_bike_id: editForm.bike_id || null,
-            p_weekly_payment: weeklyPayment,
-            p_payment_day: paymentDay,
-            p_next_payment_date: nextPaymentDate,
-            p_deposit: Number(editForm.deposit) || 0,
-            p_admin_comment: editForm.admin_comment || null
-        });
-
-        const { error: contactError } = profileError
-            ? { error: null }
-            : await supabase.from('tenants').update({
-                phone: editForm.phone?.trim() || null,
-                telegram_username: normalizeTelegramUsername(editForm.telegram_username) || null
-            }).eq('id', id);
-        const error = profileError || contactError;
-
-        if (!error) {
+        const nextPaymentDate = !editForm.bike_id
+            ? null
+            : paymentDay === currentPaymentDay && tenant.next_payment_date
+                ? tenant.next_payment_date
+                : getScheduledPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
+        try {
+            await updateTenantProfile(id!, { ...editForm, payment_day: paymentDay, next_payment_date: nextPaymentDate, weekly_payment: weeklyPayment });
             setIsEditing(false);
             queryClient.invalidateQueries({ queryKey: ['tenant', id] });
             queryClient.invalidateQueries({ queryKey: ['tenants'] });
             queryClient.invalidateQueries({ queryKey: ['bikes'] });
-        } else {
+        } catch (error) {
             alert(error.message);
         }
     };
 
     const confirmToggleArchive = async () => {
         const newArchivedState = !tenant.is_archived;
-        const { error } = await supabase.from('tenants').update({ is_archived: newArchivedState }).eq('id', id);
-        if (!error) {
-            if (newArchivedState && tenant.bikes?.id) {
-                await supabase.from('bikes').update({ status: 'available' }).eq('id', tenant.bikes.id);
-            }
+        try {
+            await setTenantArchived(id!, newArchivedState);
+            queryClient.invalidateQueries({ queryKey: ['tenants'] });
+            queryClient.invalidateQueries({ queryKey: ['bikes'] });
             navigate('/admin');
-        } else {
+        } catch (error) {
             alert(error.message);
         }
     };
 
     const confirmDeleteTenant = async () => {
-        // Delete payments first to prevent foreign key constraint issues if CASCADE is not set
-        const { error } = await supabase.from('payments').delete().eq('tenant_id', id);
-
-        if (!error) {
+        try {
+            await deleteTenant(id!);
             queryClient.invalidateQueries({ queryKey: ['tenants'] });
             navigate('/admin');
-        } else {
+        } catch (error) {
             alert(error.message);
         }
     };
@@ -264,7 +220,7 @@ export default function AdminTenantDetail() {
                             </div>
                             <div className="sm:col-span-2">
                                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Комментарий (видно арендатору)</label>
-                                <textarea value={editForm.admin_comment || ''} onChange={e => setEditForm({ ...editForm, admin_comment: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" rows="3" />
+                                <textarea value={editForm.admin_comment || ''} onChange={e => setEditForm({ ...editForm, admin_comment: e.target.value })} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" rows={3} />
                             </div>
                         </div>
 
@@ -450,7 +406,7 @@ export default function AdminTenantDetail() {
                             <p className="text-gray-600 dark:text-gray-300 text-sm mb-6">
                                 {tenant.is_archived
                                     ? "Арендатор снова появится в общем списке активных клиентов."
-                                    : "Арендатор будет скрыт из основного списка. Вы сможете найти его, включив фильтр архивных пользователей."}
+                                    : "Арендатор будет скрыт, велосипед станет свободным, а у арендатора будет выбран вариант «Нет велосипеда». Будущие автоматические начисления остановятся."}
                             </p>
                             <div className="flex justify-end space-x-3">
                                 <button onClick={() => setIsArchiveModalOpen(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
@@ -600,7 +556,14 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <div className="font-semibold text-gray-900 dark:text-white">{entryTitle}</div>
+                                            <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                {entryTitle}
+                                                {isExpected && entry.isAutomatic && (
+                                                    <span className="rounded-full border border-indigo-300/50 bg-indigo-100/50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:border-indigo-700/50 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                                        Автоматически
+                                                    </span>
+                                                )}
+                                            </div>
                                             <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={entry.dateKey}>
                                                 {format(entry.date, 'dd.MM.yy')}, {weekday}
                                             </time>
@@ -668,20 +631,19 @@ function AdjustmentModalForm({ tenant, adjustment, onClose, onSuccess }) {
         e.preventDefault();
         setLoading(true);
 
-        const payload = {
-            tenant_id: tenant.id,
-            direction,
-            amount: Number(amount),
-            adjustment_date: adjustmentDate,
-            comment: comment.trim()
-        };
-        const response = isEdit
-            ? await supabase.from('tenant_payment_adjustments').update(payload).eq('id', adjustment.id)
-            : await supabase.from('tenant_payment_adjustments').insert(payload);
-
-        setLoading(false);
-        if (!response.error) onSuccess();
-        else alert(response.error.message);
+        try {
+            await saveAdjustment(tenant.id!, adjustment, {
+                direction,
+                amount: Number(amount),
+                adjustment_date: adjustmentDate,
+                comment: comment.trim()
+            });
+            onSuccess();
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -710,7 +672,7 @@ function AdjustmentModalForm({ tenant, adjustment, onClose, onSuccess }) {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Причина корректировки</label>
-                    <textarea required value={comment} onChange={e => setComment(e.target.value)} rows="3" placeholder="Например: списание долга по договорённости" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                    <textarea required value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: списание долга по договорённости" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                 </div>
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                     <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-gray-900 dark:text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 sm:col-start-2 sm:text-sm disabled:opacity-50">Сохранить</button>
@@ -732,42 +694,13 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
         e.preventDefault();
         setLoading(true);
 
-        const payload = {
-            tenant_id: tenant.id,
-            amount: Number(amount),
-            payment_date: paymentDate,
-            comment: comment.trim() || null
-        };
-
-        let response;
-        if (isEdit && payment.isExpected) {
-            response = await supabase.from('tenants').update({
-                next_payment_date: paymentDate,
-                next_payment_amount: Number(amount),
-                next_payment_comment: comment.trim() || null
-            }).eq('id', tenant.id);
+        try {
+            await savePayment(tenant.id!, payment, Number(amount), paymentDate, comment.trim());
+            onSuccess();
+        } catch (error) {
+            alert(error.message);
+        } finally {
             setLoading(false);
-            if (!response.error) onSuccess();
-            else alert(response.error.message);
-        } else if (isEdit) {
-            response = await supabase.from('payments').update(payload).eq('id', payment.id);
-            setLoading(false);
-            if (!response.error) onSuccess();
-            else alert(response.error.message);
-        } else {
-            response = await supabase.rpc('record_tenant_payment', {
-                p_tenant_id: tenant.id,
-                p_amount: Number(amount),
-                p_payment_date: paymentDate,
-                p_comment: comment.trim() || null
-            });
-            if (!response.error) {
-                setLoading(false);
-                onSuccess();
-            } else {
-                setLoading(false);
-                alert(response.error.message);
-            }
         }
     };
 
@@ -782,7 +715,7 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Сумма (zł)</label>
-                    <input type="number" required value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                    <input type="number" required min={payment?.isExpected ? 0 : 0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Дата платежа</label>
@@ -792,8 +725,13 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Комментарий</label>
-                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows="3" placeholder="Например: частичная оплата, перенос, договорённость" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
+                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: частичная оплата, перенос, договорённость" className="mt-1 block w-full rounded-md bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" />
                 </div>
+                <p className="rounded-md border border-gray-300/60 bg-gray-100/60 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+                    {payment?.isExpected
+                        ? 'Это разовый перенос ожидаемого начисления. Следующие начисления снова пойдут по выбранному дню недели.'
+                        : 'Оплата уменьшает самый старый долг. Дата следующего начисления не перескакивает при полной или частичной оплате.'}
+                </p>
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                     <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-gray-900 dark:text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
                         Сохранить

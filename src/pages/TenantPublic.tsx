@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Bike, Calendar, AlertCircle, TrendingDown, CheckCircle2 } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../utils/calculateDebt';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { fetchPublicTenantProfile } from '../features/tenants/api';
 
 export default function TenantPublic() {
     const { slug } = useParams();
@@ -15,17 +15,13 @@ export default function TenantPublic() {
     useEffect(() => {
         document.title = "Моя Аренда — E-Bike Rent";
         async function loadTenant() {
-            const { data, error } = await supabase
-                .from('tenants')
-                .select('id, name, slug, weekly_payment, next_payment_date, next_payment_amount, admin_comment, payments(id, amount, payment_date), bikes(id, model, price)')
-                .eq('slug', slug)
-                .single();
-
-            if (error || !data) {
-                setError('Арендатор не найден');
-            } else {
+            try {
+                const data = await fetchPublicTenantProfile(slug || '');
+                if (!data) throw new Error('Tenant not found');
                 setTenant(data);
                 document.title = `${data.name} - аренда электровелосипеда`;
+            } catch {
+                setError('Арендатор не найден');
             }
             setLoading(false);
         }
@@ -53,13 +49,16 @@ export default function TenantPublic() {
 
     const {
         totalDebt,
+        overdueAmount,
         isOverdue,
+        hasDueToday,
+        oldestUnpaidDate,
         nextPaymentDate,
         expectedAmount
     } = calculateDebt(tenant, tenant?.payments || []);
 
     const lastPayment = tenant?.payments?.length > 0
-        ? [...tenant.payments].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0]
+        ? [...tenant.payments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]
         : null;
 
     return (
@@ -141,12 +140,14 @@ export default function TenantPublic() {
                             <h2 className="text-lg font-medium text-white">Платежи</h2>
                         </div>
 
-                        {isOverdue && (
+                        {totalDebt > 0 && (
                             <div className="bg-red-950/40 p-4 rounded-xl border border-red-900/50 mb-4">
-                                <div className="text-sm text-red-400 mb-2 font-medium">Текущая задолженность</div>
+                                <div className="text-sm text-red-400 mb-2 font-medium">
+                                    {isOverdue ? 'Просроченная задолженность' : hasDueToday ? 'К оплате сегодня' : 'Текущая задолженность'}
+                                </div>
                                 <div className="font-bold text-red-200 flex items-center justify-between text-sm">
-                                    <span>Ожидаемый платеж ({nextPaymentDate ? format(nextPaymentDate, 'dd MMM yyyy', { locale: ru }) : '—'})</span>
-                                    <span className="bg-red-900/80 px-2 py-0.5 rounded border border-red-700/50">{expectedAmount} zł</span>
+                                    <span>{oldestUnpaidDate ? `Не оплачено с ${format(oldestUnpaidDate, 'dd MMM yyyy', { locale: ru })}` : 'Ожидает оплаты'}</span>
+                                    <span className="bg-red-900/80 px-2 py-0.5 rounded border border-red-700/50">{isOverdue ? overdueAmount : totalDebt} zł</span>
                                 </div>
                             </div>
                         )}

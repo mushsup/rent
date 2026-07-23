@@ -1,13 +1,18 @@
-import { Component } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-export default class ErrorBoundary extends Component {
-    state = { hasError: false };
+interface Props { children: ReactNode }
+interface State { hasError: boolean }
 
-    static getDerivedStateFromError() {
+export default class ErrorBoundary extends Component<Props, State> {
+    state: State = { hasError: false };
+
+    static getDerivedStateFromError(_error: Error): State {
         return { hasError: true };
     }
 
-    render() {
+    componentDidCatch(_error: Error, _info: ErrorInfo) {}
+
+    render(): ReactNode {
         if (this.state.hasError) {
             return (
                 <main className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center p-6 text-center text-gray-900 dark:text-white">
@@ -22,7 +27,6 @@ export default class ErrorBoundary extends Component {
             );
         }
 
-        // eslint-disable-next-line react/prop-types
         return this.props.children;
     }
 }

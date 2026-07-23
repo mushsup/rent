@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
 import { Plus, X, Landmark, Trash2, Edit2, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, addMonths, parseISO, startOfDay, isBefore, addDays, isSameDay } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { deleteCredit, deleteCreditTransaction, fetchCredits as loadCredits, saveCredit, saveCreditTransaction } from '../../features/credits/api';
+import { generateCreditSchedule } from '../../features/credits/schedule';
+import type { Credit, CreditTransaction } from '../../types';
 
 export default function AdminPayments() {
-    const [credits, setCredits] = useState([]);
+    const [credits, setCredits] = useState<Credit[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingCredit, setEditingCredit] = useState(null);
-    const [selectedCredit, setSelectedCredit] = useState(null); 
-    const [creditTransactions, setCreditTransactions] = useState([]);
+    const [editingCredit, setEditingCredit] = useState<Credit | null>(null);
+    const [selectedCredit, setSelectedCredit] = useState<Credit | null>(null);
+    const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState(null);
+    const [editingTransaction, setEditingTransaction] = useState<CreditTransaction | null>(null);
     const [transactionType, setTransactionType] = useState('payment'); // 'payment' or 'addition'
     const [transactionData, setTransactionData] = useState({
         amount: '',
@@ -38,12 +40,15 @@ export default function AdminPayments() {
     }, []);
 
     const fetchCredits = async () => {
-        const { data: creditsData } = await supabase.from('credits').select('*').order('created_at', { ascending: false });
-        const { data: txData } = await supabase.from('credit_transactions').select('*').order('transaction_date', { ascending: true });
-        
-        setCredits(creditsData || []);
-        setCreditTransactions(txData || []);
-        setLoading(false);
+        try {
+            const data = await loadCredits();
+            setCredits(data.credits);
+            setCreditTransactions(data.transactions);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const openCreateModal = () => {
@@ -77,39 +82,31 @@ export default function AdminPayments() {
             start_date: formData.start_date,
             type: formData.type,
             amount: parseFloat(formData.amount),
-            interest_rate: formData.type === 'interest' ? parseFloat(formData.interest_rate || 0) : 0,
+            interest_rate: formData.type === 'interest' ? parseFloat(String(formData.interest_rate || 0)) : 0,
             payment_day: parseInt(formData.payment_day) || 1,
             payment_amount: parseFloat(formData.payment_amount) || 0
         };
 
-        if (editingCredit) {
-            const { error } = await supabase.from('credits').update(payload).eq('id', editingCredit.id);
-            if (error) toast.error('Ошибка сохранения');
-            else {
-                toast.success('Кредит обновлен');
-                setIsModalOpen(false);
-                fetchCredits();
-            }
-        } else {
-            const { error } = await supabase.from('credits').insert([payload]);
-            if (error) toast.error('Ошибка создания: ' + error.message);
-            else {
-                toast.success('Кредит успешно добавлен');
-                setIsModalOpen(false);
-                fetchCredits();
-            }
+        try {
+            await saveCredit(editingCredit?.id, payload);
+            toast.success(editingCredit ? 'Кредит обновлен' : 'Кредит успешно добавлен');
+            setIsModalOpen(false);
+            fetchCredits();
+        } catch (error) {
+            toast.error(`Ошибка сохранения: ${error.message}`);
         }
     };
 
     const handleDelete = async (e, id) => {
         e.stopPropagation();
         if (!window.confirm('Точно удалить этот кредит?')) return;
-        const { error } = await supabase.from('credits').delete().eq('id', id);
-        if (error) toast.error('Ошибка удаления');
-        else {
+        try {
+            await deleteCredit(id);
             toast.success('Кредит удален');
             fetchCredits();
             if (selectedCredit?.id === id) setSelectedCredit(null);
+        } catch (error) {
+            toast.error(`Ошибка удаления: ${error.message}`);
         }
     };
 
@@ -122,39 +119,26 @@ export default function AdminPayments() {
             transaction_date: transactionData.date
         };
 
-        if (editingTransaction) {
-            const { error } = await supabase.from('credit_transactions').update(payload).eq('id', editingTransaction.id);
-            if (error) toast.error('Ошибка обновления');
-            else {
-                toast.success('Операция обновлена');
-                setIsTransactionModalOpen(false);
-                setEditingTransaction(null);
-                fetchCredits();
-            }
-        } else {
-            const { error } = await supabase.from('credit_transactions').insert([payload]);
-            if (error) {
-                if (error.code === 'PGRST204' || error.message.includes('not found')) {
-                    toast.error('Таблица транзакций не создана.');
-                } else {
-                    toast.error('Ошибка: ' + error.message);
-                }
-            } else {
-                toast.success(transactionType === 'payment' ? 'Платеж добавлен' : 'Сумма кредита увеличена');
-                setIsTransactionModalOpen(false);
-                setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0] });
-                fetchCredits();
-            }
+        try {
+            await saveCreditTransaction(editingTransaction?.id, payload);
+            toast.success(editingTransaction ? 'Операция обновлена' : transactionType === 'payment' ? 'Платеж добавлен' : 'Сумма кредита увеличена');
+            setIsTransactionModalOpen(false);
+            setEditingTransaction(null);
+            setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0] });
+            fetchCredits();
+        } catch (error) {
+            toast.error(`Ошибка операции: ${error.message}`);
         }
     };
 
     const handleDeleteTransaction = async (id) => {
         if (!window.confirm('Удалить эту операцию?')) return;
-        const { error } = await supabase.from('credit_transactions').delete().eq('id', id);
-        if (error) toast.error('Ошибка удаления');
-        else {
+        try {
+            await deleteCreditTransaction(id);
             toast.success('Операция удалена');
             fetchCredits();
+        } catch (error) {
+            toast.error(`Ошибка удаления: ${error.message}`);
         }
     };
 
@@ -188,73 +172,11 @@ export default function AdminPayments() {
         return data;
     };
 
-    const generateCreditSchedule = (credit) => {
-        const transactions = creditTransactions.filter(tx => tx.credit_id === credit.id);
-        const startDate = startOfDay(parseISO(credit.start_date));
-        const initialAmount = parseFloat(credit.amount) || 0;
-        const interestRate = (parseFloat(credit.interest_rate) || 0) / 100;
-        const regularPayment = parseFloat(credit.payment_amount) || 0;
-        const paymentDay = parseInt(credit.payment_day) || 1;
-
-        let schedule = [];
-        let currentBalance = initialAmount;
-        const now = startOfDay(new Date());
-        let currentDate = startDate;
-
-        const sortedTransactions = [...transactions]
-            .map(t => ({ ...t, date: startOfDay(parseISO(t.transaction_date)) }))
-            .sort((a, b) => a.date - b.date);
-
-        let txIdx = 0;
-
-        schedule.push({
-            date: format(startDate, 'dd.MM.yyyy'),
-            action: 'Начало кредита',
-            amount: currentBalance,
-            graphLabel: format(startDate, 'MMM yyyy', { locale: ru })
-        });
-
-        while (isBefore(currentDate, now)) {
-            if (credit.type === 'interest' && currentBalance > 0) {
-                const dayInterest = (currentBalance * interestRate) / 365;
-                currentBalance += dayInterest;
-            }
-
-            currentDate = addDays(currentDate, 1);
-            
-            if (currentDate.getDate() === paymentDay) {
-                currentBalance -= regularPayment;
-                schedule.push({
-                    date: format(currentDate, 'dd.MM.yyyy'),
-                    action: 'Регулярный платеж',
-                    amount: currentBalance,
-                    graphLabel: format(currentDate, 'MMM yyyy', { locale: ru })
-                });
-            }
-
-            while (txIdx < sortedTransactions.length && isSameDay(sortedTransactions[txIdx].date, currentDate)) {
-                const tx = sortedTransactions[txIdx];
-                if (tx.type === 'payment') currentBalance -= tx.amount;
-                else if (tx.type === 'addition') currentBalance += tx.amount;
-                
-                schedule.push({
-                    date: format(currentDate, 'dd.MM.yyyy'),
-                    action: tx.type === 'payment' ? 'Частичное погашение' : 'Добор кредита',
-                    amount: currentBalance,
-                    graphLabel: format(currentDate, 'MMM yyyy', { locale: ru }),
-                    txId: tx.id
-                });
-                txIdx++;
-            }
-        }
-
-        return schedule.reverse();
-    };
-
     if (loading) return <div className="text-gray-900 dark:text-white text-center">Загрузка...</div>;
 
     const totalDebt = credits.reduce((sum, c) => sum + calculateCreditDebt(c, new Date(), creditTransactions.filter(tx => tx.credit_id === c.id)), 0);
     const totalGraphData = processTotalDebtChartData();
+    const selectedSchedule = selectedCredit ? generateCreditSchedule(selectedCredit, creditTransactions) : [];
 
     const openEditTransaction = (tx) => {
         setEditingTransaction(tx);
@@ -376,7 +298,7 @@ export default function AdminPayments() {
                         
                         <div className="h-[250px] min-h-[250px] focus:outline-none mb-8" style={{ outline: 'none' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={generateCreditSchedule(selectedCredit).reverse().map(s => ({ label: s.graphLabel, debtAmount: s.amount }))} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <AreaChart data={[...selectedSchedule].reverse().map(s => ({ label: s.graphLabel, debtAmount: s.amount }))} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorCreditGraph" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
@@ -403,7 +325,7 @@ export default function AdminPayments() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {generateCreditSchedule(selectedCredit).map((s, i) => (
+                                    {selectedSchedule.map((s, i) => (
                                         <tr key={i} className="transition-colors hover:bg-black/5 dark:hover:bg-white/10 group">
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{s.date}</td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600 dark:text-gray-300">

@@ -1,35 +1,15 @@
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, ExternalLink, X } from 'lucide-react';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
-import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
-import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getNextPaymentDate, getScheduledPaymentDate } from '../../utils/paymentSchedule';
+import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getScheduledPaymentDate } from '../../utils/paymentSchedule';
 import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subMonths, subYears, subWeeks, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Bike, Tenant } from '../../types';
+import { createTenant, fetchBikes, fetchDashboardTenants } from '../../features/tenants/api';
 
-const MotorcycleIcon = ({ className }) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <circle cx="5" cy="16" r="4" />
-        <circle cx="18" cy="16" r="4" />
-        <path d="M18 16 L14 6 L16 4" />
-        <path d="M14 8 H9 L5 16" />
-        <path d="M9 8 L9 16" />
-        <path d="M5 16 H12" />
-    </svg>
-);
-
-const CustomXAxisTick = ({ x, y, payload, chartData }) => {
-    const value = payload.value;
-    const item = chartData.find(d => d.date === value);
-    return (
-        <text x={x} y={y + 5} fill="#9ca3af" fontSize={11} textAnchor="middle">
-            {item ? item.label : value}
-        </text>
-    );
-};
+const RevenueChart = lazy(() => import('./RevenueChart'));
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
@@ -41,96 +21,65 @@ export default function AdminDashboard() {
     // Archive visibility state
     const [showArchived, setShowArchived] = useState(false);
     const [tenantFilter, setTenantFilter] = useState('all');
+    const [chartReady, setChartReady] = useState(false);
+
+    useEffect(() => {
+        const loadChart = () => setChartReady(true);
+        if ('requestIdleCallback' in window) {
+            const idleId = window.requestIdleCallback(loadChart, { timeout: 800 });
+            return () => window.cancelIdleCallback(idleId);
+        }
+        const timeoutId = globalThis.setTimeout(loadChart, 250);
+        return () => globalThis.clearTimeout(timeoutId);
+    }, []);
 
     // Modals state
     const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
-    const [showDebtGraph, setShowDebtGraph] = useState(false);
 
-    const { data: bikes = [], isError: bikesError } = useQuery({
+    const { data: bikes = [], isError: bikesError } = useQuery<Bike[]>({
         queryKey: ['bikes'],
-        queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('id, model, type, status');
-            return data || [];
-        }
+        queryFn: fetchBikes
     });
 
-    const { data: credits = [], isError: creditsError } = useQuery({
-        queryKey: ['credits'],
-        queryFn: async () => {
-            const { data } = await supabase.from('credits').select('*');
-            return data || [];
-        }
+    const { data: tenants = [], isLoading: loading, isError: tenantsError, error: tenantsQueryError } = useQuery<Tenant[]>({
+        queryKey: ['tenants', 'dashboard', showArchived],
+        queryFn: () => fetchDashboardTenants(showArchived)
     });
 
-    const { data: tenants = [], isLoading: loading, isError: tenantsError, error: tenantsQueryError } = useQuery({
-        queryKey: ['tenants', 'dashboard'],
-        queryFn: async () => {
-            const currentQuery = await supabase
-                .from('tenants')
-                .select('id, name, slug, bike_id, is_archived, next_payment_date, next_payment_amount, weekly_payment, payment_day, deposit, admin_comment, payments(id, amount, payment_date, created_at), payment_terms:tenant_payment_terms(id, weekly_payment, payment_day, effective_from, effective_to), bikes(id, model, type, status)')
-                .order('name');
+    const tenantSummaries = useMemo(() => tenants.map(tenant => ({
+        ...tenant,
+        debtSummary: calculateDebt(tenant, tenant.payments)
+    })), [tenants]);
 
-            if (!currentQuery.error) return currentQuery.data || [];
-
-            // Keep older Supabase projects usable until the rental-term migrations are applied.
-            const legacyQuery = await supabase
-                .from('tenants')
-                .select('*, payments(*), bikes(*)')
-                .order('name');
-
-            if (legacyQuery.error) throw legacyQuery.error;
-            return legacyQuery.data || [];
-        }
-    });
-
-    /*
-    const handleFastPayment = async (e, tenant) => {
-        e.stopPropagation();
-        const toastId = toast.loading('Обработка платежа...');
-        const amount = calculateDebt(tenant, tenant.payments).expectedAmount;
-        const currentNextDate = tenant.next_payment_date || format(new Date(), 'yyyy-MM-dd');
-        const paymentDay = tenant.payment_day || getPaymentDay(currentNextDate);
-        const newNextDate = getNextPaymentDate(currentNextDate, paymentDay);
-
-        const { error } = await supabase.from('payments').insert([{
-            tenant_id: tenant.id,
-            amount: amount,
-            payment_date: format(new Date(), 'yyyy-MM-dd')
-        }]);
-
-        if (!error) {
-            await supabase.from('tenants').update({ next_payment_date: newNextDate }).eq('id', tenant.id);
-            toast.success(`Оплачено ${amount} zł. Следующий: ${format(new Date(newNextDate), 'dd.MM.yyyy')}`, { id: toastId });
-            queryClient.invalidateQueries({ queryKey: ['tenants'] });
-        } else {
-            toast.error(error.message, { id: toastId });
-        }
-    };
-    */
-
-    const activeWeeklyRevenue = tenants.reduce((sum, t) => sum + (t.is_archived ? 0 : getTenantWeeklyPayment(t)), 0);
+    const activeWeeklyRevenue = tenantSummaries.reduce((sum, t) => sum + (t.is_archived ? 0 : getTenantWeeklyPayment(t)), 0);
     const activeMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
 
-    const totalBikesCount = bikes.length || 1;
+    const totalBikesCount = bikes.length;
     const rentedBikesCount = bikes.filter(b => b.status === 'in_rent').length;
     const maintBikesCount = bikes.filter(b => b.status === 'maintenance').length;
     const availBikesCount = bikes.filter(b => b.status === 'available').length;
+    const utilizationBase = Math.max(totalBikesCount - maintBikesCount, 1);
+    const utilizationRate = rentedBikesCount / utilizationBase;
     
-    const potentialMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
-
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const nextSevenDaysKey = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-    const activeTenants = tenants.filter(tenant => !tenant.is_archived);
+    const activeTenants = tenantSummaries.filter(tenant => !tenant.is_archived);
     const tenantDebt = activeTenants.map(tenant => ({
         tenant,
-        debt: calculateDebt(tenant, tenant.payments)
+        debt: tenant.debtSummary
     }));
-    const overdueCount = tenantDebt.filter(({ debt }) => debt.totalDebt > 0 && debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') < todayKey).length;
-    const dueTodayCount = tenantDebt.filter(({ debt }) => debt.totalDebt > 0 && debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') === todayKey).length;
-    const upcomingCount = tenantDebt.filter(({ debt }) => debt.nextPaymentDate && format(debt.nextPaymentDate, 'yyyy-MM-dd') >= todayKey && format(debt.nextPaymentDate, 'yyyy-MM-dd') <= nextSevenDaysKey).length;
+    const overdueCount = tenantDebt.filter(({ debt }) => debt.isOverdue).length;
+    const dueTodayCount = tenantDebt.filter(({ debt }) => debt.hasDueToday).length;
+    const upcomingCount = tenantDebt.filter(({ tenant, debt }) => (
+        tenant.bike_id
+        && Number(tenant.weekly_payment) > 0
+        && debt.nextPaymentDate
+        && format(debt.nextPaymentDate, 'yyyy-MM-dd') >= todayKey
+        && format(debt.nextPaymentDate, 'yyyy-MM-dd') <= nextSevenDaysKey
+    )).length;
     const totalOutstandingDebt = tenantDebt.reduce((sum, { debt }) => sum + debt.totalDebt, 0);
     
-    const processChartData = () => {
+    const processChartData = useCallback(() => {
         let grouped = {};
         const now = new Date();
         let startDate;
@@ -144,22 +93,6 @@ export default function AdminDashboard() {
 
         const allPayments = tenants.flatMap(t => t.payments || []);
 
-        let current = new Date(startDate);
-        while (current <= now) {
-            let key;
-            if (chartPeriod === 'week') {
-                key = format(startOfWeek(current, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                current.setDate(current.getDate() + 7);
-            } else if (chartPeriod === 'month') {
-                key = format(startOfMonth(current), 'yyyy-MM-dd');
-                current.setMonth(current.getMonth() + 1);
-            } else if (chartPeriod === 'year') {
-                key = format(startOfYear(current), 'yyyy-MM-dd');
-                current.setFullYear(current.getFullYear() + 1);
-            }
-            if (!grouped[key]) grouped[key] = 0;
-        }
-
         allPayments.forEach(p => {
             const pd = parseISO(p.payment_date);
             if (isAfter(pd, startDate)) {
@@ -168,22 +101,11 @@ export default function AdminDashboard() {
                 else if (chartPeriod === 'month') key = format(startOfMonth(pd), 'yyyy-MM-dd');
                 else if (chartPeriod === 'year') key = format(startOfYear(pd), 'yyyy-MM-dd');
 
-                if (grouped[key] !== undefined) {
-                    grouped[key] += p.amount;
-                }
+                grouped[key] = (grouped[key] || 0) + (Number(p.amount) || 0);
             }
         });
 
-        const keysList = Object.keys(grouped).sort();
-        if (keysList.length > 0) {
-            const lastKey = keysList[keysList.length - 1];
-            const currentExpectedWeek = activeWeeklyRevenue;
-            if (chartPeriod === 'week') grouped[lastKey] = currentExpectedWeek;
-            else if (chartPeriod === 'month') grouped[lastKey] = currentExpectedWeek * 4.33;
-            else if (chartPeriod === 'year') grouped[lastKey] = currentExpectedWeek * 52;
-        }
-
-        return Object.keys(grouped).sort().map(key => {
+        return Object.keys(grouped).sort().filter(key => grouped[key] > 0).map(key => {
             let label = key;
             let fullLabel = key;
             const d = parseISO(key);
@@ -203,21 +125,11 @@ export default function AdminDashboard() {
 
             return { date: key, label, fullLabel, amount: Math.round(grouped[key]) };
         });
-    };
+    }, [tenants, chartPeriod]);
 
-    const chartData = tenants.length > 0 ? processChartData() : [];
+    const chartData = useMemo(() => tenants.length > 0 ? processChartData() : [], [tenants.length, processChartData]);
 
-    // Augment chart data with debt
-    const chartDataWithDebt = chartData.map(dataPoint => {
-        const dateObj = parseISO(dataPoint.date);
-        const totalDebtForDay = credits.reduce((sum, c) => sum + calculateCreditDebt(c, dateObj), 0);
-        return { ...dataPoint, debtAmount: Math.round(totalDebtForDay) };
-    });
-
-    const filteredTenants = tenants.map(t => ({
-        ...t,
-        computedDebt: calculateDebt(t, t.payments).totalDebt
-    })).filter(t => {
+    const filteredTenants = tenantSummaries.filter(t => {
         // filter by search
         const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
             (t.bikes?.model || '').toLowerCase().includes(search.toLowerCase());
@@ -226,21 +138,27 @@ export default function AdminDashboard() {
         // filter by archived
         if (showArchived ? !t.is_archived : t.is_archived) return false;
 
-        const nextDateKey = calculateDebt(t, t.payments).nextPaymentDate
-            ? format(calculateDebt(t, t.payments).nextPaymentDate, 'yyyy-MM-dd')
+        const nextDateKey = t.debtSummary.nextPaymentDate
+            ? format(t.debtSummary.nextPaymentDate, 'yyyy-MM-dd')
             : null;
-        if (tenantFilter === 'overdue' && !(t.computedDebt > 0 && nextDateKey < todayKey)) return false;
-        if (tenantFilter === 'today' && !(t.computedDebt > 0 && nextDateKey === todayKey)) return false;
-        if (tenantFilter === 'upcoming' && !(nextDateKey && nextDateKey >= todayKey && nextDateKey <= nextSevenDaysKey)) return false;
-        if (tenantFilter === 'debt' && t.computedDebt <= 0) return false;
+        if (tenantFilter === 'overdue' && !t.debtSummary.isOverdue) return false;
+        if (tenantFilter === 'today' && !t.debtSummary.hasDueToday) return false;
+        if (tenantFilter === 'upcoming' && !(
+            t.bike_id
+            && Number(t.weekly_payment) > 0
+            && nextDateKey
+            && nextDateKey >= todayKey
+            && nextDateKey <= nextSevenDaysKey
+        )) return false;
+        if (tenantFilter === 'debt' && t.debtSummary.totalDebt <= 0) return false;
 
         return true;
     }).sort((a, b) => {
         // sort by nextPaymentDate closest first
-        const debtA = calculateDebt(a, a.payments);
-        const debtB = calculateDebt(b, b.payments);
-        const timeA = debtA.nextPaymentDate ? new Date(debtA.nextPaymentDate).getTime() : Infinity;
-        const timeB = debtB.nextPaymentDate ? new Date(debtB.nextPaymentDate).getTime() : Infinity;
+        const debtA = a.debtSummary;
+        const debtB = b.debtSummary;
+        const timeA = debtA.oldestUnpaidDate?.getTime() ?? debtA.nextPaymentDate?.getTime() ?? Infinity;
+        const timeB = debtB.oldestUnpaidDate?.getTime() ?? debtB.nextPaymentDate?.getTime() ?? Infinity;
         return timeA - timeB;
     });
 
@@ -250,29 +168,11 @@ export default function AdminDashboard() {
 
     return (
         <div className="pt-2">
-            {(tenantsError || bikesError || creditsError) && (
+            {(tenantsError || bikesError) && (
                 <div className="mb-4 rounded-lg border border-red-300/50 bg-red-50/50 px-4 py-3 text-sm text-red-600 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-300">
                     Не удалось загрузить часть данных. {tenantsQueryError?.message || 'Проверьте подключение к базе данных.'}
                 </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-                {[
-                    { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
-                    { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
-                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-indigo-500', suffix: '' },
-                    { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' }
-                ].map(card => (
-                    <button
-                        key={card.id}
-                        type="button"
-                        onClick={() => setTenantFilter(card.id)}
-                        className={`rounded-xl border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'}`}
-                    >
-                        <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 leading-tight">{card.label}</div>
-                        <div className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}{card.suffix}</div>
-                    </button>
-                ))}
-            </div>
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {/* Chart Card */}
@@ -291,33 +191,9 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                     <div className="w-full mt-2 flex-1 focus:outline-none" style={{ outline: 'none' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 10 }}>
-                                <defs>
-                                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                                <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} tickMargin={5} tick={props => <CustomXAxisTick {...props} chartPeriod={chartPeriod} chartData={chartData} />} />
-                                <YAxis hide={true} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', borderRadius: '0.5rem', color: '#f3f4f6', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                    itemStyle={{ color: '#818cf8' }}
-                                    formatter={(value, name) => [
-                                        `${Number(value).toLocaleString('ru-RU')} zł`,
-                                        'Доход'
-                                    ]}
-                                    labelFormatter={(label) => {
-                                        if (chartData.length === 0) return label;
-                                        const payload = chartData.find(d => d.date === label);
-                                        return payload ? payload.fullLabel : label;
-                                    }}
-                                />
-                                <Area type="monotone" dataKey="amount" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" activeDot={{ className: "focus:outline-none", style: { outline: 'none' } }} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<div className="h-full min-h-[170px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-900/60" />}>
+                            {chartReady ? <RevenueChart data={chartData} /> : <div className="h-full min-h-[170px] rounded-lg bg-gray-100 dark:bg-gray-900/60" />}
+                        </Suspense>
                     </div>
                 </div>
 
@@ -345,13 +221,13 @@ export default function AdminDashboard() {
                             <div className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white flex items-baseline justify-center gap-2 transition-all">
                                 {statsTab === 'percent' ? (
                                     <>
-                                        <span>{Math.round((rentedBikesCount / totalBikesCount) * 100)}</span>
+                                        <span>{Math.round(utilizationRate * 100)}</span>
                                         <span className="text-2xl sm:text-3xl text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">/ 100%</span>
                                     </>
                                 ) : (
                                     <>
                                         <span>{activeMonthlyRevenue.toLocaleString('ru-RU')}</span>
-                                        <span className="text-2xl sm:text-3xl text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">/ {potentialMonthlyRevenue.toLocaleString('ru-RU')}</span>
+                                        <span className="text-2xl sm:text-3xl text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">zł/мес</span>
                                     </>
                                 )}
                             </div>
@@ -359,22 +235,22 @@ export default function AdminDashboard() {
                             {/* Motivational Badge */}
                             <div className="mt-2">
                                 <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-extrabold uppercase border shadow-sm transition-all whitespace-nowrap ${
-                                    (rentedBikesCount / totalBikesCount) < 0.25 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200 border-gray-200 dark:border-gray-600' : 
-                                    (rentedBikesCount / totalBikesCount) < 0.50 ? 'bg-red-100/30 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200/30 dark:border-red-800/30' : 
-                                    (rentedBikesCount / totalBikesCount) < 0.70 ? 'bg-orange-100/30 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200/30 dark:border-orange-800/30' : 
-                                    (rentedBikesCount / totalBikesCount) < 0.90 ? 'bg-yellow-100/30 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200/30 dark:border-yellow-800/30' : 
+                                    utilizationRate < 0.40 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200 border-gray-200 dark:border-gray-600' : 
+                                    utilizationRate < 0.60 ? 'bg-red-100/30 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200/30 dark:border-red-800/30' : 
+                                    utilizationRate < 0.80 ? 'bg-orange-100/30 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200/30 dark:border-orange-800/30' : 
+                                    utilizationRate < 0.95 ? 'bg-yellow-100/30 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200/30 dark:border-yellow-800/30' : 
                                     'bg-green-100/30 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200/30 dark:border-green-800/30'
                                 }`}>
-                                    {(rentedBikesCount / totalBikesCount) < 0.25 ? (
+                                    {utilizationRate < 0.40 ? (
                                         <><span>💀</span> Смерть в нищете</>
-                                    ) : (rentedBikesCount / totalBikesCount) < 0.50 ? (
-                                        <><span>😭</span> Всё плохо</>
-                                    ) : (rentedBikesCount / totalBikesCount) < 0.70 ? (
-                                        <><span>😑</span> Трымаемся</>
-                                    ) : (rentedBikesCount / totalBikesCount) < 0.90 ? (
-                                        <><span>🫡</span> Норм</>
+                                    ) : utilizationRate < 0.60 ? (
+                                        <><span>🫠</span> Касса в тильте</>
+                                    ) : utilizationRate < 0.80 ? (
+                                        <><span>🗿</span> На морально-волевых</>
+                                    ) : utilizationRate < 0.95 ? (
+                                        <><span>🦍</span> Мощь</>
                                     ) : (
-                                        <><span>🚀</span> Пушка бомба</>
+                                        <><span>🕯️</span> Свободных тел нет</>
                                     )}
                                 </span>
                             </div>
@@ -458,10 +334,29 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+                {[
+                    { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
+                    { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
+                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-indigo-500', suffix: '' },
+                    { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' }
+                ].map(card => (
+                    <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => setTenantFilter(current => current === card.id ? 'all' : card.id)}
+                        className={`rounded-xl border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'}`}
+                    >
+                        <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 leading-tight">{card.label}</div>
+                        <div className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}{card.suffix}</div>
+                    </button>
+                ))}
+            </div>
+
             {/* Mobile View (Cards) */}
             <div className="mt-6 sm:hidden space-y-2">
                 {filteredTenants.map((tenant) => {
-                    const { totalDebt, nextPaymentDate } = calculateDebt(tenant, tenant.payments);
+                    const { totalDebt, nextPaymentDate } = tenant.debtSummary;
                     return (
                         <div
                             key={tenant.id}
@@ -515,7 +410,7 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-transparent">
                                     {filteredTenants.map((tenant) => {
-                                        const { totalDebt, nextPaymentDate } = calculateDebt(tenant, tenant.payments);
+                                        const { totalDebt, nextPaymentDate } = tenant.debtSummary;
                                         return (
                                             <tr key={tenant.id} onClick={() => handleRowClick(tenant)} className="cursor-pointer group transition-colors hover:bg-black/5 dark:hover:bg-white/10">
                                                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
@@ -561,10 +456,10 @@ export default function AdminDashboard() {
                                         );
                                     })}
                                     {!loading && filteredTenants.length === 0 && (
-                                        <tr><td colSpan="6" className="py-8 text-center text-gray-400 dark:text-gray-500">Нет данных для отображения.</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-gray-400 dark:text-gray-500">Нет данных для отображения.</td></tr>
                                     )}
                                     {loading && (
-                                        <tr><td colSpan="6" className="py-8 text-center text-gray-400 dark:text-gray-500">Загрузка...</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-gray-400 dark:text-gray-500">Загрузка...</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -599,12 +494,8 @@ function TenantModal({ onClose, onSuccess, bikes }) {
     const [loading, setLoading] = useState(false);
 
     const sortedBikes = bikes
-        .filter(b => b.status === 'available' || b.status === 'maintenance')
-        .sort((a, b) => {
-            if (a.status === 'available' && b.status !== 'available') return -1;
-            if (a.status !== 'available' && b.status === 'available') return 1;
-            return 0;
-        });
+        .filter(b => b.status === 'available')
+        .sort((a, b) => a.model.localeCompare(b.model));
 
     const handleBikeChange = (e) => setFormData(prev => ({ ...prev, bike_id: e.target.value }));
 
@@ -613,7 +504,16 @@ function TenantModal({ onClose, onSuccess, bikes }) {
         setFormData(prev => ({
             ...prev,
             payment_day: paymentDay,
-            next_payment_date: getScheduledPaymentDate(new Date(), paymentDay)
+            next_payment_date: getScheduledPaymentDate(prev.next_payment_date || new Date(), paymentDay)
+        }));
+    };
+
+    const handleFirstPaymentDateChange = (e) => {
+        const nextPaymentDate = e.target.value;
+        setFormData(prev => ({
+            ...prev,
+            next_payment_date: nextPaymentDate,
+            payment_day: nextPaymentDate ? getPaymentDay(nextPaymentDate) : prev.payment_day
         }));
     };
 
@@ -622,47 +522,11 @@ function TenantModal({ onClose, onSuccess, bikes }) {
         setLoading(true);
         const rentAmount = Number(formData.weekly_payment) || 0;
         const firstPaymentDate = formData.next_payment_date;
-        const nextPaymentDateDB = getNextPaymentDate(firstPaymentDate, Number(formData.payment_day));
 
-        const { data: newTenant, error } = await supabase.from('tenants').insert([{
-            name: formData.name,
-            slug: formData.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-'),
-            bike_id: formData.bike_id || null,
-            weekly_payment: rentAmount,
-            payment_day: Number(formData.payment_day),
-            next_payment_date: nextPaymentDateDB,
-            deposit: Number(formData.deposit) || 0,
-            phone: formData.phone.trim() || null,
-            telegram_username: formData.telegram_username.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '') || null
-        }]).select().single();
-
-        if (!error && newTenant) {
-            const { error: termsError } = await supabase.rpc('upsert_tenant_payment_terms', {
-                p_tenant_id: newTenant.id,
-                p_weekly_payment: rentAmount,
-                p_payment_day: Number(formData.payment_day),
-                p_effective_from: format(new Date(), 'yyyy-MM-dd')
-            });
-
-            if (termsError) {
-                alert(termsError.message);
-                setLoading(false);
-                return;
-            }
-
-            if (formData.bike_id) {
-                await supabase.from('bikes').update({ status: 'in_rent' }).eq('id', formData.bike_id);
-            }
-            // Create initial rent payment
-            if (rentAmount > 0) {
-                await supabase.from('payments').insert([{
-                    tenant_id: newTenant.id,
-                    amount: rentAmount,
-                    payment_date: formData.next_payment_date || format(new Date(), 'yyyy-MM-dd')
-                }]);
-            }
+        try {
+            await createTenant({ ...formData, weekly_payment: rentAmount, next_payment_date: firstPaymentDate });
             onSuccess();
-        } else {
+        } catch (error) {
             alert(error.message);
         }
         setLoading(false);
@@ -692,12 +556,11 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Велосипед</label>
                         <select
-                            required
                             value={formData.bike_id}
                             onChange={handleBikeChange}
                             className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm"
                         >
-                            <option value="">Выберите велосипед</option>
+                            <option value="">Нет велосипеда</option>
                             {sortedBikes.map(b => (
                                 <option key={b.id} value={b.id}>
                                     {b.status === 'available' ? '🟢✅ ' : '🟠🔧 '}{b.model}
@@ -707,7 +570,8 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Дата первого платежа</label>
-                        <input type="date" required value={formData.next_payment_date} onChange={e => setFormData({ ...formData, next_payment_date: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white py-2 px-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Это ожидаемое начисление, а не уже полученная оплата.</p>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">День еженедельного платежа</label>

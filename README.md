@@ -4,7 +4,7 @@ E-Bike Rent Krakow is a browser-based rental operations dashboard for managing c
 
 ## Stack
 
-- React 18 with Vite 5 and JavaScript/JSX
+- React 18 with Vite 5 and TypeScript/TSX
 - React Router 7 using `HashRouter` for client-side navigation
 - Supabase JS for authentication and direct Postgres access
 - TanStack React Query for cached admin queries and invalidation
@@ -13,7 +13,7 @@ E-Bike Rent Krakow is a browser-based rental operations dashboard for managing c
 
 ## Runtime architecture
 
-The application is a single-page frontend. `src/main.jsx` creates one React Query client, wraps the app in `React.StrictMode`, and mounts a `HashRouter`. `src/App.jsx` defines the route tree and global toast configuration.
+The application is a single-page frontend. `src/main.tsx` creates one React Query client, wraps the app in `React.StrictMode`, and mounts a `HashRouter`. `src/App.tsx` defines the route tree and global toast configuration.
 
 ```text
 Browser
@@ -31,9 +31,9 @@ Browser
                     └── Postgres tables + Row Level Security
 ```
 
-`src/components/Layout.jsx` is the admin route guard: it loads the Supabase session, subscribes to auth changes, redirects unauthenticated users to `/admin/login`, and provides the admin navigation, logout, and dark-mode toggle.
+`src/components/Layout.tsx` is the admin route guard: it loads the Supabase session, subscribes to auth changes, redirects unauthenticated users to `/admin/login`, and provides the admin navigation, logout, and dark-mode toggle.
 
-The feature pages currently contain their own query and mutation logic. There is no separate API server, domain service layer, generated database type layer, or shared repository abstraction.
+Supabase access for tenant workflows is centralized in `src/features/tenants/api.ts`. Pure financial calculations remain in `src/utils/`, while route components focus on UI state and rendering.
 
 ## Data model and migrations
 
@@ -62,8 +62,9 @@ Schema changes in `src/lib/migrations/` are incremental:
 13. `012_persist_payment_charges.sql` persists expected weekly charges for an explainable payment ledger.
 14. `013_add_tenant_contacts_and_adjustments.sql` adds tenant phone/Telegram contacts and immutable balance corrections.
 15. `014_limit_future_payment_charges.sql` retains only the nearest expected charge after today.
+16. `015`–`022` repair legacy payment dates, schedule automatic charges, harden rental/payment workflows, expose the public financial summary, make bike assignment atomic, and enforce financial invariants.
 
-`supabase_setup.sql` is an older bootstrap script and does not describe the current schema completely. Do not use it alone for a fresh environment: reconcile it with the migrations and the queries in `src/pages/admin/` before provisioning a new database. In particular, the current application also queries `credits`, `credit_transactions`, `bikes`, `is_archived`, and newer tenant fields.
+`supabase_setup.sql` is retained only as a historical bootstrap reference. A new environment must be provisioned from the ordered migrations; the bootstrap file does not describe the current schema completely.
 
 ## Environment and local development
 
@@ -102,7 +103,7 @@ npm run dev
 4. Start Vite with `npm run dev` and open the URL printed in the terminal. With the configured base path, the usual address is `http://localhost:5173/rent/`.
 5. Test the public experience at `/rent/` and a tenant link at `/rent/#/<tenant-slug>`.
 6. Test the admin flow at `/rent/#/admin/login` using the Supabase authenticated user. Verify the dashboard, bike inventory, payments/credits, tenant detail, payment recording, bike assignment, archive, logout, and dark-mode toggle.
-7. Before submitting changes, run `npm run build`. Run `npm run lint` as well; the current repository has documented pre-existing lint failures in the audit baseline.
+7. Before submitting changes, run `npm run typecheck`, `npm run lint`, and `npm run build`.
 
 Because the app uses `HashRouter`, route paths after the base path must include `#` during local testing. Changes to `.env` require restarting the Vite process.
 
@@ -112,6 +113,7 @@ Available scripts:
 - `npm run build` — create the production bundle in `dist/`.
 - `npm run preview` — serve the production bundle locally.
 - `npm run lint` — run ESLint across the repository.
+- `npm run typecheck` — run TypeScript without emitting files.
 
 Vite is configured with `base: '/rent/'`, so deployments must serve the app under `/rent/` unless that setting and the deployment path are changed together. Because routing uses `HashRouter`, the host does not need history-fallback rewrites for client routes.
 
@@ -125,11 +127,11 @@ Vite is configured with `base: '/rent/'`, so deployments must serve the app unde
 
 The dashboard lists tenants, filters archived/payment status, summarizes bike availability and revenue, and records fast payments. Bike management supports inventory CRUD, status filtering, and assignment cleanup. Tenant detail supports editing, payment CRUD, archiving, and bike reassignment. The payments page tracks credits and credit transactions; `calculateCreditDebt` applies daily interest, dated transactions, and regular payment days.
 
-Admin reads use TanStack Query with a five-minute stale time and explicit invalidation after mutations. Supabase calls remain in page components rather than behind an API boundary.
+Admin reads use TanStack Query with a five-minute stale time and explicit invalidation after mutations. Tenant queries and mutations are centralized in `src/features/tenants/api.ts`.
 
-## Audit baseline
+## Quality baseline
 
-The production build currently succeeds (`npm run build`). `npm run lint` currently fails with existing issues, including unused imports/variables, missing React prop validation, an invalid regular expression in `fixTheme.js`, and undefined references in `AdminDashboard.jsx` and `AdminTenantDetail.jsx`. Treat lint as a required cleanup item before merging application changes.
+The production build, ESLint, and TypeScript checks are expected to pass before changes are merged. Financial calculations should be covered by focused tests before changing their behavior.
 
 Security depends on Supabase Row Level Security, not on route visibility. The public tenant route is intentionally anonymous, while admin writes rely on authenticated Supabase sessions. Verify policies for every current table—especially `bikes`, `credits`, and `credit_transactions`—when maintaining the database. The browser currently queries tenant/payment data directly, so public policies must expose only the minimum fields and rows intended for tenant links.
 
@@ -141,9 +143,9 @@ src/
 ├── lib/              Supabase client and SQL migrations
 ├── pages/            Public and admin route-level components
 ├── utils/            Pure debt-calculation functions
-├── App.jsx           Route tree and global toaster
-├── main.jsx          React, Query Client, and router bootstrap
-├── App.css           Legacy starter styles (most UI uses Tailwind)
+├── features/         Feature-level API modules and reusable feature code
+├── App.tsx           Route tree and global toaster
+├── main.tsx          React, Query Client, and router bootstrap
 └── index.css         Tailwind entrypoint and global styles
 ```
 

@@ -15,7 +15,7 @@ The Supabase CLI configuration under `supabase/` manages the isolated beta datab
 - `tenant_payment_charges` stores expected scheduled charges and their original amounts.
 - `tenant_payment_adjustments` stores dated, explained changes that increase or reduce a balance without rewriting payment history.
 - `payments` stores completed payments and comments.
-- `paymentLedger.js` combines persisted charges and payments into a chronological balance view, with a calculated fallback for databases before migrations 007/012.
+- `paymentLedger.ts` combines persisted charges and payments into a chronological balance view.
 
 Payment recording and tenant profile/bike assignment use PostgreSQL RPC functions so related updates can commit atomically.
 
@@ -25,4 +25,4 @@ The dashboard starts with action-oriented counts for overdue, due-today, upcomin
 
 ## Performance and deployment
 
-Static assets are deployed to Cloudflare Pages. The service worker caches same-origin frontend assets only; Supabase responses remain network-backed. Supabase queries use explicit field lists where the schema is current, with a legacy fallback on the dashboard while migrations are being rolled out.
+Static assets are deployed to Cloudflare Pages. The service worker caches same-origin frontend assets only; Supabase responses remain network-backed. Tenant reads and mutations are kept in `src/features/tenants/api.ts`, and the dashboard loads the heavy revenue chart lazily.

@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
 import { Plus, Edit2, X, Trash2, ArrowUpDown, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { deleteBike, fetchBikeTenants, fetchInventory, saveBike } from '../../features/bikes/api';
+import type { Bike } from '../../types';
 
 export default function AdminBikes() {
     const queryClient = useQueryClient();
@@ -15,20 +16,14 @@ export default function AdminBikes() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBike, setEditingBike] = useState(null);
 
-    const { data: bikes = [], isLoading: bikesLoading, isError: bikesError } = useQuery({
+    const { data: bikes = [], isLoading: bikesLoading, isError: bikesError } = useQuery<Bike[]>({
         queryKey: ['bikes'],
-        queryFn: async () => {
-            const { data } = await supabase.from('bikes').select('id, model, type, status').order('model');
-            return data || [];
-        }
+        queryFn: fetchInventory
     });
 
     const { data: tenants = [], isLoading: tenantsLoading, isError: tenantsError } = useQuery({
         queryKey: ['tenants', 'bikes'],
-        queryFn: async () => {
-            const { data } = await supabase.from('tenants').select('id, name, bike_id');
-            return data || [];
-        }
+        queryFn: fetchBikeTenants
     });
 
     const loading = bikesLoading || tenantsLoading;
@@ -325,24 +320,14 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
             status: formData.status
         };
 
-        let response;
-        if (isEdit) {
-            response = await supabase.from('bikes').update(payload).eq('id', bike.id);
-            
-            // Если статус меняется на свободный или ремонт - убираем связь с арендатором
-            if (formData.status !== 'in_rent') {
-                await supabase.from('tenants').update({ bike_id: null }).eq('bike_id', bike.id);
-            }
-        } else {
-            response = await supabase.from('bikes').insert([payload]);
-        }
-
-        setLoading(false);
-        if (!response.error) {
+        try {
+            await saveBike(bike?.id, payload);
             toast.success(isEdit ? 'Обновлено успешно' : 'Создан новый велосипед');
             onSuccess();
-        } else {
-            toast.error(response.error.message);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -355,14 +340,15 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
         if (!window.confirm(`Удалить велосипед «${bike.model}»? Это действие нельзя отменить.`)) return;
 
         setLoading(true);
-        const { error } = await supabase.from('bikes').delete().eq('id', bike.id);
-        setLoading(false);
-
-        if (error) {
+        try {
+            await deleteBike(bike.id);
+        } catch (error) {
             toast.error(error.message);
+            setLoading(false);
             return;
         }
 
+        setLoading(false);
         toast.success('Велосипед удалён');
         onSuccess();
     };
@@ -407,7 +393,7 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                     <div className="flex p-1 bg-gray-100 dark:bg-gray-750 rounded-lg border border-gray-200 dark:border-gray-700">
                         {[
                             { id: 'available', label: 'Свободен' },
-                            { id: 'in_rent', label: 'В аренде' },
+                            ...(assignedTenant ? [{ id: 'in_rent', label: 'В аренде' }] : []),
                             { id: 'maintenance', label: 'Ремонт' }
                         ].map((s) => (
                             <button
@@ -424,6 +410,9 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                             </button>
                         ))}
                     </div>
+                    {assignedTenant && formData.status !== 'in_rent' && (
+                        <p className="mt-2 text-xs text-orange-500">Велосипед будет отвязан от {assignedTenant.name}, а будущие начисления остановятся.</p>
+                    )}
                 </div>
 
                 <div className={`${isEdit ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} mt-6 sm:grid sm:grid-flow-row-dense sm:gap-3`}>

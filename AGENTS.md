@@ -2,13 +2,13 @@
 
 ## Project context
 
-This repository is a React 18 single-page application built with Vite 5. It uses JavaScript/JSX, React Router 7 with `HashRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and browser-side Supabase queries. The deploy base path is `/rent/`.
+This repository is a React 18 single-page application built with Vite 5. It uses TypeScript/TSX, React Router 7 with `HashRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and feature-level API modules. The deploy base path is `/rent/`.
 
 ## Working agreements
 
 - Read `README.md` before changing routing, deployment, or database-facing behavior.
-- Keep changes narrow and follow the existing route/component organization. Do not introduce an API layer, service/factory hierarchy, or state-management framework unless the current task requires it.
-- Use `apply_patch` for edits. Never delete files without explicit user confirmation.
+- Keep changes narrow and follow the feature organization. Keep Supabase access in feature API modules and financial rules in pure domain utilities.
+- Use `apply_patch` for edits. Delete only confirmed dead files or artifacts.
 - Keep user-visible copy consistent with the existing Russian-language UI unless the task explicitly changes localization.
 - Preserve unrelated working-tree changes and inspect `git diff` before finishing.
 - Use Conventional Commits when a commit is requested, for example `fix(admin): handle tenant deletion error`.
@@ -25,7 +25,7 @@ This repository is a React 18 single-page application built with Vite 5. It uses
 
 ## Routing and authentication
 
-- Add routes in `src/App.jsx`; remember that the app uses `HashRouter`, so URLs are hash-based in production.
+- Add routes in `src/App.tsx`; remember that the app uses `HashRouter`, so URLs are hash-based in production.
 - Keep all admin pages under the authenticated `Layout` route. Do not treat a hidden link or client-side redirect as authorization.
 - Use Supabase Auth session state for access control and preserve the existing redirect to `/admin/login`.
 - Do not put service-role keys, database passwords, or other privileged credentials in source, `VITE_*` variables, or browser storage.
@@ -49,7 +49,7 @@ This repository is a React 18 single-page application built with Vite 5. It uses
 
 ## Financial calculations
 
-- Keep debt logic in pure utilities such as `src/utils/calculateDebt.js` and `src/utils/calculateCreditDebt.js`.
+- Keep debt logic in pure utilities such as `src/utils/calculateDebt.ts` and `src/utils/calculateCreditDebt.ts`.
 - Treat money as numeric values at the persistence boundary and avoid introducing floating-point accumulation for new financial workflows without a deliberate rounding strategy.
 - Add focused tests for overdue boundaries, same-day payments, date/time-zone behavior, zero/negative balances, interest accrual, and transaction ordering before changing calculations.
 - Never use UI formatting as the source of truth for a stored amount or date.
@@ -70,7 +70,3 @@ npm run build
 ```
 
 For database-facing changes, verify the migration against a non-production Supabase project and manually exercise anonymous tenant access, authenticated admin access, failed mutations, and related-row consistency. The repository’s current baseline builds successfully but lint is not clean; new changes must not increase that debt and should fix touched-file errors where practical.
-
-## Known baseline issues
-
-At the time this file was added, lint reports existing errors including unused imports, missing prop validation, an invalid regex in `fixTheme.js`, and undefined references in `AdminDashboard.jsx` and `AdminTenantDetail.jsx`. The production build succeeds. These are documented baseline findings, not permission to ignore new errors.

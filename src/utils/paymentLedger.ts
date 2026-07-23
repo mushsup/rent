@@ -1,31 +1,32 @@
 import { addDays, format, parseISO, subDays } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, getPaymentDay, getScheduledPaymentDate } from './paymentSchedule';
+import type { AdjustmentLedgerEvent, ExpectedLedgerEvent, LedgerEntry, LedgerEvent, Payment, PaymentCharge, PaymentLedger, PaymentLedgerEvent, Tenant } from '../types';
 
 const HISTORY_WEEKS_WITHOUT_ANCHOR = 12;
 
-function toDate(value) {
+function toDate(value: string | Date | number): Date {
     return typeof value === 'string' ? parseISO(value) : new Date(value);
 }
 
-function toDateKey(value) {
+function toDateKey(value: string | Date | number): string {
     return format(toDate(value), 'yyyy-MM-dd');
 }
 
-function compareDates(left, right) {
+function compareDates(left: string | Date | number, right: string | Date | number): number {
     return toDate(left).getTime() - toDate(right).getTime();
 }
 
-/**
- * Returns the tenant's recurring weekly payment, including a legacy fallback
- * while existing databases complete the rental-term migration.
- * @param {object|null} tenant Tenant record with optional bike relation.
- * @returns {number} Weekly payment amount.
- */
-export function getTenantWeeklyPayment(tenant) {
-    const weeklyPayment = Number(tenant?.weekly_payment);
-    if (weeklyPayment > 0) return weeklyPayment;
+function compareTimestamps(left: string | Date | number, right: string | Date | number): number {
+    return new Date(left).getTime() - new Date(right).getTime();
+}
 
-    return Number(tenant?.bikes?.price) || 0;
+function roundMoney(value: number): number {
+    return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+/** Returns the tenant's recurring weekly payment. */
+export function getTenantWeeklyPayment(tenant: Tenant | null | undefined): number {
+    return Math.max(Number(tenant?.weekly_payment) || 0, 0);
 }
 
 /**
@@ -36,8 +37,16 @@ export function getTenantWeeklyPayment(tenant) {
  * @returns {{entries: Array<object>, currentBalance: number, balanceAtReference: number}}
  * Ledger entries and balances after all entries and after the reference date.
  */
-export function buildPaymentLedger(tenant, payments = [], referenceDate = new Date()) {
-    if (!tenant) return { entries: [], currentBalance: 0, balanceAtReference: 0 };
+export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: Payment[] = [], referenceDate: Date | string = new Date()): PaymentLedger {
+    if (!tenant) {
+        return {
+            entries: [],
+            currentBalance: 0,
+            balanceAtReference: 0,
+            outstandingCharges: [],
+            creditAtReference: 0
+        };
+    }
 
     const paymentDay = Number(tenant.payment_day)
         || getPaymentDay(tenant.next_payment_date || referenceDate)
@@ -46,17 +55,27 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
         ? toDateKey(tenant.next_payment_date)
         : getScheduledPaymentDate(referenceDate, paymentDay);
     const actualPayments = payments.filter(payment => payment?.payment_date);
-    const earliestPayment = actualPayments.reduce((earliest, payment) => (
+    const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
+    const earliestPayment = actualPayments.reduce<string | null>((earliest, payment) => (
         !earliest || compareDates(payment.payment_date, earliest) < 0 ? payment.payment_date : earliest
     ), null);
-    const latestPayment = actualPayments.reduce((latest, payment) => (
+    const latestPayment = actualPayments.reduce<string | null>((latest, payment) => (
         !latest || compareDates(payment.payment_date, latest) > 0 ? payment.payment_date : latest
     ), null);
+    const earliestCharge = persistedCharges.reduce<PaymentCharge | null>((earliest, charge) => (
+        !earliest || compareDates(charge.due_date, earliest.due_date) < 0 ? charge : earliest
+    ), null);
+    // When term history is unavailable, next_payment_date is the current
+    // accounting anchor; deriving charges from old payments would overstate debt.
     const startDate = tenant.created_at
         ? toDateKey(tenant.created_at)
-        : earliestPayment
-            ? toDateKey(subDays(toDate(earliestPayment), 7))
-            : toDateKey(subDays(toDate(nextPaymentKey), HISTORY_WEEKS_WITHOUT_ANCHOR * 7));
+        : earliestCharge
+            ? toDateKey(earliestCharge.due_date)
+        : tenant.next_payment_date
+            ? nextPaymentKey
+            : earliestPayment
+                ? toDateKey(subDays(toDate(earliestPayment), 7))
+                : toDateKey(subDays(toDate(nextPaymentKey), HISTORY_WEEKS_WITHOUT_ANCHOR * 7));
     const endDate = latestPayment && compareDates(latestPayment, nextPaymentKey) > 0
         ? toDateKey(latestPayment)
         : nextPaymentKey;
@@ -75,10 +94,9 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     }];
     const referenceKey = toDateKey(referenceDate);
 
-    const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
     const adjustments = (tenant.payment_adjustments || []).filter(adjustment => adjustment?.adjustment_date);
     const chargeByDate = new Map(persistedCharges.map(charge => [toDateKey(charge.due_date), charge]));
-    const expectedDates = new Set();
+    const expectedDates = new Set<string>();
     if (persistedCharges.length > 0) {
         persistedCharges.forEach(charge => expectedDates.add(toDateKey(charge.due_date)));
     } else {
@@ -104,22 +122,24 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
             return true;
         });
 
-    const events = [
-        ...visibleExpectedDates.map(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
-        ...adjustments.map(adjustment => ({
+    const events: LedgerEvent[] = [
+        ...visibleExpectedDates.map<ExpectedLedgerEvent>(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
+        ...adjustments.map<AdjustmentLedgerEvent>(adjustment => ({
             type: 'adjustment',
             date: toDateKey(adjustment.adjustment_date),
             amount: Number(adjustment.amount) || 0,
             direction: adjustment.direction,
             comment: adjustment.comment || '',
+            createdAt: adjustment.created_at || null,
             adjustmentId: adjustment.id,
             sortOrder: 1
         })),
-        ...actualPayments.map(payment => ({
+        ...actualPayments.map<PaymentLedgerEvent>(payment => ({
             type: 'payment',
             date: toDateKey(payment.payment_date),
             amount: Number(payment.amount) || 0,
             comment: payment.comment || '',
+            createdAt: payment.created_at || null,
             paymentId: payment.id,
             sortOrder: 2
         }))
@@ -128,7 +148,7 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
     const expectedOverride = tenant.next_payment_amount != null ? Number(tenant.next_payment_amount) : null;
     let balance = 0;
     let balanceAtReference = 0;
-    const entries = events.map(event => {
+    const entries: LedgerEntry[] = events.map((event: LedgerEvent) => {
         const term = event.type === 'expected'
             ? effectiveTerms.find(candidate => (
                 compareDates(event.date, candidate.effective_from) >= 0
@@ -137,15 +157,23 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
             : null;
         const amount = event.type === 'expected'
             ? (event.charge
-                ? Number(event.charge.amount) || 0
+                ? event.charge.status === 'waived' ? 0 : Number(event.charge.amount) || 0
                 : event.date === nextPaymentKey && expectedOverride != null ? expectedOverride : term.weekly_payment)
             : event.amount;
-        const signedAmount = event.type === 'expected'
-            ? amount
-            : event.type === 'adjustment'
-                ? (event.direction === 'charge' ? amount : -amount)
-                : -amount;
-        balance += signedAmount;
+        const createdAt = 'createdAt' in event ? event.createdAt : null;
+        const wasRecordedAfterLedgerStarted = createdAt
+            && earliestCharge?.created_at
+            && compareTimestamps(createdAt, earliestCharge.created_at) >= 0;
+        const isBeforeAccountingStart = compareDates(event.date, startDate) < 0
+            && !wasRecordedAfterLedgerStarted;
+        const signedAmount = isBeforeAccountingStart
+            ? 0
+            : event.type === 'expected'
+                ? amount
+                : event.type === 'adjustment'
+                    ? (event.direction === 'charge' ? amount : -amount)
+                    : -amount;
+        balance = roundMoney(balance + signedAmount);
         if (compareDates(event.date, referenceKey) <= 0) balanceAtReference = balance;
 
         return {
@@ -156,6 +184,7 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
             date: toDate(event.date),
             dateKey: event.date,
             isCurrentExpected: event.type === 'expected' && event.date === nextPaymentKey,
+            isAutomatic: event.type === 'expected' && event.charge?.is_automatic === true,
             isOverdue: event.type === 'expected' && compareDates(event.date, referenceKey) <= 0,
             comment: event.type === 'expected'
                 ? (event.charge?.comment || (event.date === nextPaymentKey ? tenant.next_payment_comment || '' : ''))
@@ -163,9 +192,49 @@ export function buildPaymentLedger(tenant, payments = [], referenceDate = new Da
         };
     });
 
+    let availableCredit = 0;
+    const outstandingCharges: PaymentLedger['outstandingCharges'] = [];
+
+    entries.forEach(entry => {
+        if (compareDates(entry.dateKey, referenceKey) > 0 || entry.signedAmount === 0) return;
+
+        if (entry.signedAmount > 0) {
+            let remaining = roundMoney(entry.signedAmount);
+            const coveredByCredit = Math.min(availableCredit, remaining);
+            availableCredit = roundMoney(availableCredit - coveredByCredit);
+            remaining = roundMoney(remaining - coveredByCredit);
+
+            if (remaining > 0) {
+                outstandingCharges.push({
+                    date: entry.date,
+                    dateKey: entry.dateKey,
+                    amount: entry.amount,
+                    remaining,
+                    type: entry.type,
+                    chargeId: entry.charge?.id || null,
+                    adjustmentId: entry.adjustmentId || null
+                });
+            }
+            return;
+        }
+
+        let creditAmount = roundMoney(Math.abs(entry.signedAmount));
+        while (creditAmount > 0 && outstandingCharges.length > 0) {
+            const oldestCharge = outstandingCharges[0];
+            const appliedAmount = Math.min(creditAmount, oldestCharge.remaining);
+            oldestCharge.remaining = roundMoney(oldestCharge.remaining - appliedAmount);
+            creditAmount = roundMoney(creditAmount - appliedAmount);
+
+            if (oldestCharge.remaining <= 0) outstandingCharges.shift();
+        }
+        availableCredit = roundMoney(availableCredit + creditAmount);
+    });
+
     return {
         entries,
         currentBalance: balance,
-        balanceAtReference
+        balanceAtReference,
+        outstandingCharges,
+        creditAtReference: availableCredit
     };
 }

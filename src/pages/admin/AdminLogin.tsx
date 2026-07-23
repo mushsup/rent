@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
 import { Bike, AlertCircle } from 'lucide-react';
+import { signIn } from '../../features/auth/api';
 
 export default function AdminLogin() {
     useEffect(() => {
@@ -19,16 +19,12 @@ export default function AdminLogin() {
         setLoading(true);
         setError('');
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (error) {
+        try {
+            await signIn(email, password);
+            navigate('/admin');
+        } catch {
             setError('Неверный логин или пароль');
             setLoading(false);
-        } else {
-            navigate('/admin');
         }
     };
 
