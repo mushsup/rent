@@ -463,7 +463,6 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                     <span className={`font-semibold ${amountClass}`}>{amountPrefix}{entry.amount} zł</span>
                                     <time className="text-xs text-slate-500 dark:text-slate-400" dateTime={entry.dateKey}>{format(entry.date, 'dd.MM.yy')}</time>
-                                    {!isExpected && !isAdjustment && <span className="text-xs text-lime-700 dark:text-lime-400">Оплата</span>}
                                     {isAdjustment && <span className="text-xs text-slate-500 dark:text-slate-400">Корректировка</span>}
                                 </div>
                                 {displayComment && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{displayComment}</p>}
