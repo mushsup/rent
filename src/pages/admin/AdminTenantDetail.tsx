@@ -4,7 +4,7 @@ import { getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { buildPaymentLedger } from '../../utils/paymentLedger';
 import { format } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getScheduledPaymentDate } from '../../utils/paymentSchedule';
-import { ArrowLeft, Edit2, Trash2, Calendar, AlertCircle, X, Archive, ChevronDown, Phone, Send, Plus, Bike as BikeIcon, Banknote, MoreHorizontal, Check } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, AlertCircle, X, Archive, ChevronDown, Phone, Send, Plus, Bike as BikeIcon, Banknote, MoreHorizontal, Check } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Bike, DeletableRecord, PaymentAdjustment, PaymentEditorValue, TenantDetail, TenantEditForm } from '../../types';
 import { deleteTenant, deleteTenantRecord, fetchBikes, fetchTenantDetail, saveAdjustment, savePayment, setTenantArchived, updateTenantProfile } from '../../features/tenants/api';
@@ -248,20 +248,15 @@ export default function AdminTenantDetail() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div className="md:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white flex items-center">
-                            <Calendar className="w-5 h-5 mr-2 text-lime-500" /> Журнал платежей
-                        </h3>
+                    <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">Баланс</h3>
+                        <div className={`flex items-center gap-1 text-base font-bold ${paymentLedger.currentBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}`}>
+                            {paymentLedger.currentBalance > 0 ? `${paymentLedger.currentBalance} zł` : '0 zł'}
+                            {paymentLedger.currentBalance <= 0 && <Check className="h-4 w-4" />}
+                        </div>
                         <button title="Добавить запись" onClick={() => { setEditingLedgerEntry({ type: 'payment', value: null }); setIsLedgerModalOpen(true); }} className="inline-flex items-center justify-center rounded-md bg-lime-500 p-2 text-slate-950 transition-colors hover:bg-lime-400">
                             <Plus className="w-5 h-5" />
                         </button>
-                    </div>
-                    <div className="mb-5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                        <span>Баланс</span>
-                        <span className={`text-base font-bold ${paymentLedger.currentBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}`}>
-                            {paymentLedger.currentBalance > 0 ? `${paymentLedger.currentBalance} zł` : '0 zł'}
-                        </span>
-                        {paymentLedger.currentBalance <= 0 && <Check className="h-4 w-4 text-lime-600 dark:text-lime-400" />}
                     </div>
                     <PaymentLedgerList
                         entries={paymentLedger.entries}
@@ -454,7 +449,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                     const balanceLabel = entry.balance > 0 ? `${entry.balance} zł` : '0 zł';
 
                     return (
-                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId}`} className="group flex items-start gap-3 py-4 first:pt-1 last:pb-1">
+                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId}`} className="group grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-3 py-4 first:pt-1 last:pb-1">
                             <span className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center ${isAdjustment ? 'text-slate-500 dark:text-slate-400' : 'text-lime-600 dark:text-lime-400'}`}>
                                 {isAdjustment ? <BikeIcon className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
                             </span>
@@ -465,8 +460,10 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onDeletePayment, 
                                     {isAdjustment && <span className="text-xs text-slate-500 dark:text-slate-400">Корректировка</span>}
                                 </div>
                                 {entry.comment && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{entry.comment}</p>}
-                                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Баланс после операции: <span className={entry.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}>{balanceLabel}</span></p>
                             </div>
+                            <span className={`pt-1 whitespace-nowrap text-sm font-semibold ${entry.balance > 0 ? 'text-red-500 dark:text-red-400' : 'text-lime-700 dark:text-lime-400'}`}>
+                                {balanceLabel}
+                            </span>
                             {(isAdjustment || payment) && (
                                 <div className="relative flex-shrink-0">
                                     <details className="group/menu">
