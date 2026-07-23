@@ -15,7 +15,7 @@
   }
 
   body {
-    @apply bg-zinc-100 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100 transition-colors;
+    @apply bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-100 transition-colors;
     min-width: 320px;
     -webkit-font-smoothing: antialiased;
   }
@@ -32,11 +32,11 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #a1a1aa transparent;
+    scrollbar-color: #94a3b8 transparent;
   }
 
   .dark * {
-    scrollbar-color: #52525b transparent;
+    scrollbar-color: #475569 transparent;
   }
 
   button,

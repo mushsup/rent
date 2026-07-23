@@ -16,13 +16,13 @@ function App() {
     <>
       <Toaster position="top-right" toastOptions={{
         style: {
-          background: '#18181b',
+          background: '#0f172a',
           color: '#fff',
-          border: '1px solid #3f3f46',
+          border: '1px solid #334155',
           borderRadius: '10px',
         },
       }} />
-      <Suspense fallback={<div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center text-zinc-950 dark:text-white">Загрузка...</div>}>
+      <Suspense fallback={<div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-slate-950 dark:text-white">Загрузка...</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/admin/login" element={<AdminLogin />} />

@@ -29,15 +29,15 @@ export default function TenantPublic() {
         loadTenant();
     }, [slug]);
 
-    if (loading) return <div className="min-h-screen bg-zinc-900 flex justify-center items-center text-white">Загрузка...</div>;
+    if (loading) return <div className="min-h-screen bg-slate-900 flex justify-center items-center text-white">Загрузка...</div>;
 
     if (error) {
         return (
-            <div className="min-h-screen bg-zinc-900 flex flex-col justify-center items-center text-white p-4 text-center font-sans selection:bg-lime-500/30">
+            <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center text-white p-4 text-center font-sans selection:bg-lime-500/30">
                 <Bike className="w-20 h-20 text-lime-500 mb-6" />
                 <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-lime-500 to-cyan-500 mb-4">404</h1>
                 <h2 className="text-2xl font-bold mb-6">Арендатор не найден</h2>
-                <p className="text-zinc-400 max-w-sm mb-10 text-lg">
+                <p className="text-slate-400 max-w-sm mb-10 text-lg">
                     Похоже, ссылка недействительна или страница была удалена.
                 </p>
                 <Link to="/" className="inline-flex items-center px-6 py-3 rounded-full bg-lime-600 hover:bg-lime-500 text-white font-medium transition-all shadow-[0_0_20px_rgba(190,242,100,0.24)] hover:-translate-y-0.5">
@@ -62,29 +62,29 @@ export default function TenantPublic() {
         : null;
 
     return (
-        <div className="min-h-screen bg-zinc-900 py-6 px-3 sm:px-4 lg:px-6 font-sans">
+        <div className="min-h-screen bg-slate-900 py-6 px-3 sm:px-4 lg:px-6 font-sans">
             <div className="max-w-3xl mx-auto space-y-4">
 
                 {/* Profile Card */}
-                <div className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 p-4 md:p-6">
+                <div className="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 p-4 md:p-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center space-x-5">
-                            <div className="h-16 w-16 bg-lime-900 shadow-inner rounded-full flex items-center justify-center ring-4 ring-zinc-800">
+                            <div className="h-16 w-16 bg-lime-900 shadow-inner rounded-full flex items-center justify-center ring-4 ring-slate-800">
                                 <span className="text-2xl font-bold text-lime-300">
                                     {tenant?.name?.charAt(0).toUpperCase()}
                                 </span>
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-white tracking-tight">{tenant?.name}</h1>
-                                <div className="flex items-center mt-1.5 text-zinc-400 bg-zinc-900 px-3 py-1 rounded-full text-sm inline-flex">
+                                <div className="flex items-center mt-1.5 text-slate-400 bg-slate-900 px-3 py-1 rounded-full text-sm inline-flex">
                                     <Bike className="w-4 h-4 mr-1.5 text-lime-400" />
                                     <span>{tenant?.bikes?.model || 'Нет велосипеда'}</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="text-left sm:text-right bg-zinc-900/50 p-4 rounded-lg border border-zinc-700 w-full sm:w-auto">
-                            <div className="text-sm text-zinc-400 mb-1">Ставка (в неделю)</div>
-                            <div className="text-2xl font-bold text-white">{getTenantWeeklyPayment(tenant)} <span className="text-zinc-400 text-lg">zł</span></div>
+                        <div className="text-left sm:text-right bg-slate-900/50 p-4 rounded-lg border border-slate-700 w-full sm:w-auto">
+                            <div className="text-sm text-slate-400 mb-1">Ставка (в неделю)</div>
+                            <div className="text-2xl font-bold text-white">{getTenantWeeklyPayment(tenant)} <span className="text-slate-400 text-lg">zł</span></div>
                         </div>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ export default function TenantPublic() {
                 {/* Status Dashboard */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Текущий статус */}
-                    <div className={`${totalDebt > 0 ? 'bg-red-950/30 border-red-900/50' : 'bg-zinc-800 border-zinc-700'} rounded-2xl shadow-xl border p-5 flex flex-col justify-between relative overflow-hidden`}>
+                    <div className={`${totalDebt > 0 ? 'bg-red-950/30 border-red-900/50' : 'bg-slate-800 border-slate-700'} rounded-2xl shadow-xl border p-5 flex flex-col justify-between relative overflow-hidden`}>
                         {totalDebt === 0 && (
                             <div className="absolute -right-6 -top-6 text-green-900/20">
                                 <CheckCircle2 className="w-32 h-32" />
@@ -121,8 +121,8 @@ export default function TenantPublic() {
                             </div>
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-zinc-700/50 relative z-10">
-                            <p className="text-sm text-zinc-400 leading-relaxed">
+                        <div className="mt-4 pt-4 border-t border-slate-700/50 relative z-10">
+                            <p className="text-sm text-slate-400 leading-relaxed">
                                 {totalDebt > 0
                                     ? <span className="text-red-300">Пожалуйста, внесите оплату в ближайшее время.</span>
                                     : <span className="text-green-300">У вас нет задолженностей. Спасибо!</span>}
@@ -131,10 +131,10 @@ export default function TenantPublic() {
                     </div>
 
                     {/* Платежи */}
-                    <div className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 p-5 flex flex-col justify-between">
+                    <div className="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 p-5 flex flex-col justify-between">
 
                         <div className="flex items-center space-x-3 mb-5">
-                            <div className="p-2 bg-zinc-700 rounded-lg">
+                            <div className="p-2 bg-slate-700 rounded-lg">
                                 <Calendar className="w-5 h-5 text-lime-400" />
                             </div>
                             <h2 className="text-lg font-medium text-white">Платежи</h2>
@@ -160,12 +160,12 @@ export default function TenantPublic() {
                             </div>
                         </div>
 
-                        <div className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-700/50 flex items-center justify-between">
-                            <div className="text-xs text-zinc-400">Последний платеж</div>
-                            <div className="text-sm text-zinc-300">
+                        <div className="bg-slate-900/30 p-3 rounded-lg border border-slate-700/50 flex items-center justify-between">
+                            <div className="text-xs text-slate-400">Последний платеж</div>
+                            <div className="text-sm text-slate-300">
                                 {lastPayment
                                     ? `${format(new Date(lastPayment.payment_date), 'dd MMM', { locale: ru })} — ${lastPayment.amount} zł`
-                                    : <span className="italic text-zinc-400">Оплат не было</span>}
+                                    : <span className="italic text-slate-400">Оплат не было</span>}
                             </div>
                         </div>
                     </div>

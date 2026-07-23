@@ -176,14 +176,14 @@ export default function AdminDashboard() {
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {/* Chart Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm lg:col-span-2 flex flex-col h-full min-h-[240px]">
+                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-5 shadow-sm lg:col-span-2 flex flex-col h-full min-h-[240px]">
                     <div className="flex justify-end items-center mb-4">
-                        <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
                             {['week', 'month', 'year'].map((period) => (
                                 <button
                                     key={period}
                                     onClick={() => setChartPeriod(period)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                                 >
                                     {period === 'week' ? 'Нед' : period === 'month' ? 'Мес' : 'Год'}
                                 </button>
@@ -191,25 +191,25 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                     <div className="w-full mt-2 flex-1 focus:outline-none" style={{ outline: 'none' }}>
-                        <Suspense fallback={<div className="h-full min-h-[170px] animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-900/60" />}>
-                            {chartReady ? <RevenueChart data={chartData} /> : <div className="h-full min-h-[170px] rounded-lg bg-zinc-100 dark:bg-zinc-900/60" />}
+                        <Suspense fallback={<div className="h-full min-h-[170px] animate-pulse rounded-lg bg-slate-100 dark:bg-slate-900/60" />}>
+                            {chartReady ? <RevenueChart data={chartData} /> : <div className="h-full min-h-[170px] rounded-lg bg-slate-100 dark:bg-slate-900/60" />}
                         </Suspense>
                     </div>
                 </div>
 
                 {/* Occupancy/Revenue Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 transition-all shadow-sm flex flex-col h-full relative overflow-hidden min-h-[240px]">
+                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 transition-all shadow-sm flex flex-col h-full relative overflow-hidden min-h-[240px]">
                     {/* Top Controls: Tabs */}
-                    <div className="absolute top-4 right-4 z-10 flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1 border border-zinc-200 dark:border-zinc-800">
+                    <div className="absolute top-4 right-4 z-10 flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
                         <button
                             onClick={() => setStatsTab('percent')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                         >
                             %
                         </button>
                         <button
                             onClick={() => setStatsTab('amount')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-lime-600 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white dark:hover:bg-zinc-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                         >
                             zł
                         </button>
@@ -218,16 +218,16 @@ export default function AdminDashboard() {
                     {/* Central Content: Centered relative to entire card height */}
                     <div className="flex-1 flex flex-col items-center justify-center p-3 min-h-0">
                         <div className="flex flex-col items-center">
-                            <div className="text-4xl sm:text-5xl font-bold text-zinc-900 dark:text-white flex items-baseline justify-center gap-2 transition-all">
+                            <div className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-white flex items-baseline justify-center gap-2 transition-all">
                                 {statsTab === 'percent' ? (
                                     <>
                                         <span>{Math.round(utilizationRate * 100)}</span>
-                                        <span className="text-2xl sm:text-3xl text-zinc-400 dark:text-zinc-500 font-medium whitespace-nowrap">/ 100%</span>
+                                        <span className="text-2xl sm:text-3xl text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">/ 100%</span>
                                     </>
                                 ) : (
                                     <>
                                         <span>{activeMonthlyRevenue.toLocaleString('ru-RU')}</span>
-                                        <span className="text-2xl sm:text-3xl text-zinc-400 dark:text-zinc-500 font-medium whitespace-nowrap">zł/мес</span>
+                                        <span className="text-2xl sm:text-3xl text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">zł/мес</span>
                                     </>
                                 )}
                             </div>
@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                             {/* Motivational Badge */}
                             <div className="mt-2">
                                 <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-extrabold uppercase border shadow-sm transition-all whitespace-nowrap ${
-                                    utilizationRate < 0.40 ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-200 border-zinc-200 dark:border-zinc-600' :
+                                    utilizationRate < 0.40 ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-200 border-slate-200 dark:border-slate-600' :
                                     utilizationRate < 0.60 ? 'bg-red-100/30 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200/30 dark:border-red-800/30' :
                                     utilizationRate < 0.80 ? 'bg-orange-100/30 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200/30 dark:border-orange-800/30' :
                                     utilizationRate < 0.95 ? 'bg-yellow-100/30 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200/30 dark:border-yellow-800/30' :
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
                     {/* Bottom Section: Numbers + Progress Bar */}
                     <div className="absolute bottom-0 left-0 w-full flex flex-col">
                         {/* Numbers */}
-                        <div className="flex w-full mb-1 text-[11px] font-medium text-zinc-400 dark:text-zinc-500 px-0.5">
+                        <div className="flex w-full mb-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 px-0.5">
                             {rentedBikesCount > 0 && (
                                 <div style={{ width: `${(rentedBikesCount / totalBikesCount) * 100}%` }} className="flex justify-center transition-all">
                                     {rentedBikesCount}
@@ -297,11 +297,11 @@ export default function AdminDashboard() {
                 <div className="flex flex-row gap-3 items-stretch">
                     <div className="relative flex-1 max-w-lg">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Search className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                            <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" />
                         </div>
                         <input
                             type="text"
-                            className="block w-full h-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white pl-10 py-2 border sm:text-sm focus:border-lime-500 focus:ring-lime-500 placeholder-zinc-500"
+                            className="block w-full h-full rounded-md border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white pl-10 py-2 border sm:text-sm focus:border-lime-500 focus:ring-lime-500 placeholder-slate-500"
                             placeholder="Поиск"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -315,9 +315,9 @@ export default function AdminDashboard() {
                             aria-checked={showArchived}
                             onClick={() => setShowArchived((current) => !current)}
                             aria-label="Показывать архивных"
-                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-500 text-lime-700 dark:text-lime-400' : 'bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'}`}
+                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-500 text-lime-700 dark:text-lime-400' : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-transparent hover:border-slate-400 dark:hover:border-slate-500'}`}
                         >
-                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-lime-600' : 'bg-zinc-300 dark:bg-zinc-600'}`} aria-hidden="true">
+                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-lime-600' : 'bg-slate-300 dark:bg-slate-600'}`} aria-hidden="true">
                                 <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${showArchived ? 'translate-x-4' : 'translate-x-0.5'}`} />
                             </span>
                             <span>Архивные</span>
@@ -326,7 +326,7 @@ export default function AdminDashboard() {
 
                     <button
                         onClick={() => setIsTenantModalOpen(true)}
-                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-lime-600 px-3 sm:px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-lime-700 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-lime-600 px-3 sm:px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-lime-700 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                     >
                         <Plus className="h-5 w-5 sm:mr-1.5" />
                         <span className="hidden sm:inline">Добавить</span>
@@ -345,9 +345,9 @@ export default function AdminDashboard() {
                         key={card.id}
                         type="button"
                         onClick={() => setTenantFilter(current => current === card.id ? 'all' : card.id)}
-                        className={`rounded-lg border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/20' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-500'}`}
+                        className={`rounded-lg border p-3 text-left transition-colors ${tenantFilter === card.id ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-500'}`}
                     >
-                        <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">{card.label}</div>
+                        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-tight">{card.label}</div>
                         <div className={`mt-1 text-xl font-bold ${card.color}`}>{card.value}{card.suffix}</div>
                     </button>
                 ))}
@@ -361,19 +361,19 @@ export default function AdminDashboard() {
                         <div
                             key={tenant.id}
                             onClick={() => handleRowClick(tenant)}
-                            className="rounded-lg p-3 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm cursor-pointer flex items-center justify-between gap-4"
+                            className="rounded-lg p-3 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm cursor-pointer flex items-center justify-between gap-4"
                         >
                             <div className="min-w-0 flex-1">
-                                <div className="font-bold text-zinc-900 dark:text-white truncate flex items-center gap-2">
+                                <div className="font-bold text-slate-900 dark:text-white truncate flex items-center gap-2">
                                     {tenant.name}
-                                    {tenant.is_archived && <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider">А</span>}
+                                    {tenant.is_archived && <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider">А</span>}
                                 </div>
-                                <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{tenant.bikes?.model || 'Нет велосипеда'}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{tenant.bikes?.model || 'Нет велосипеда'}</div>
                             </div>
 
                             <div className="flex flex-col items-end justify-center py-1">
                                 <div className="flex items-center gap-3">
-                                    <div className="text-xs text-zinc-400 dark:text-zinc-500 font-medium tracking-tight">
+                                    <div className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-tight">
                                         {nextPaymentDate ? format(nextPaymentDate, 'dd.MM') : '—'}
                                     </div>
                                     {totalDebt > 0 && (
@@ -388,7 +388,7 @@ export default function AdminDashboard() {
                     );
                 })}
                 {!loading && filteredTenants.length === 0 && (
-                    <div className="py-8 text-center text-zinc-400 dark:text-zinc-500">Нет данных для отображения.</div>
+                    <div className="py-8 text-center text-slate-400 dark:text-slate-500">Нет данных для отображения.</div>
                 )}
             </div>
 
@@ -396,19 +396,19 @@ export default function AdminDashboard() {
             <div className="mt-8 hidden sm:flex flex-col">
                 <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8 pb-32">
                     <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                        <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-black ring-opacity-5 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                            <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-700">
-                                <thead className="bg-white dark:bg-zinc-900">
+                        <div className="overflow-hidden shadow ring-1 ring-slate-200 dark:ring-black ring-opacity-5 rounded-lg border border-slate-200 dark:border-slate-800">
+                            <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
+                                <thead className="bg-white dark:bg-slate-900">
                                     <tr>
-                                        <th className="py-3 pl-4 pr-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider sm:pl-6">Имя</th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Велосипед</th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Баланс</th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Статус</th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">След. платеж</th>
+                                        <th className="py-3 pl-4 pr-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider sm:pl-6">Имя</th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Велосипед</th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Баланс</th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Статус</th>
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">След. платеж</th>
                                         <th className="relative py-3 pl-3 pr-4 sm:pr-6"><span className="sr-only">Действия</span></th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700 bg-transparent">
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-transparent">
                                     {filteredTenants.map((tenant) => {
                                         const { totalDebt, nextPaymentDate } = tenant.debtSummary;
                                         return (
@@ -416,19 +416,19 @@ export default function AdminDashboard() {
                                                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                     <div className="flex items-center">
                                                         <div className="ml-0">
-                                                            <div className={`font-medium flex items-center gap-2 ${tenant.is_archived ? 'text-zinc-400 dark:text-zinc-500' : 'text-black dark:text-white'}`}>
+                                                            <div className={`font-medium flex items-center gap-2 ${tenant.is_archived ? 'text-slate-400 dark:text-slate-500' : 'text-black dark:text-white'}`}>
                                                                 {tenant.name}
-                                                                {tenant.is_archived && <span className="bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Архив</span>}
+                                                                {tenant.is_archived && <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Архив</span>}
                                                             </div>
                                                             <div onClick={e => e.stopPropagation()}>
-                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-lime-400 flex items-center mt-0.5">
+                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-slate-400 dark:text-slate-500 hover:text-lime-400 flex items-center mt-0.5">
                                                                     /{tenant.slug} <ExternalLink className="w-3 h-3 ml-1" />
                                                                 </Link>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-zinc-300">
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-slate-300">
                                                     {tenant.bikes?.model || '—'}
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-red-500 dark:text-red-400 font-medium">
@@ -445,7 +445,7 @@ export default function AdminDashboard() {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-zinc-400">
+                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-black dark:text-slate-400">
                                                     {nextPaymentDate && format(nextPaymentDate, 'dd.MM.yyyy')}
                                                 </td>
                                                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -456,10 +456,10 @@ export default function AdminDashboard() {
                                         );
                                     })}
                                     {!loading && filteredTenants.length === 0 && (
-                                        <tr><td colSpan={6} className="py-8 text-center text-zinc-400 dark:text-zinc-500">Нет данных для отображения.</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500">Нет данных для отображения.</td></tr>
                                     )}
                                     {loading && (
-                                        <tr><td colSpan={6} className="py-8 text-center text-zinc-400 dark:text-zinc-500">Загрузка...</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500">Загрузка...</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -470,9 +470,9 @@ export default function AdminDashboard() {
 
             {isTenantModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsTenantModalOpen(false); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsTenantModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto mt-8 max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto mt-8 max-h-[90vh] overflow-y-auto">
                             <TenantModal
                                 bikes={bikes}
                                 onClose={() => setIsTenantModalOpen(false)}
@@ -535,30 +535,30 @@ function TenantModal({ onClose, onSuccess, bikes }) {
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium leading-6 text-zinc-900 dark:text-white">Новый арендатор</h3>
-                <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                <h3 className="text-lg font-medium leading-6 text-slate-900 dark:text-white">Новый арендатор</h3>
+                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                     <X className="w-5 h-5" />
                 </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Имя арендатора</label>
-                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Имя арендатора</label>
+                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Псевдоним ссылки</label>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Псевдоним ссылки</label>
                         <div className="mt-1 flex rounded-md">
-                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700 px-3 text-zinc-500 dark:text-zinc-400 sm:text-sm">/</span>
-                            <input type="text" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="ivan-123" />
+                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 text-slate-500 dark:text-slate-400 sm:text-sm">/</span>
+                            <input type="text" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="ivan-123" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Велосипед</label>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Велосипед</label>
                         <select
                             value={formData.bike_id}
                             onChange={handleBikeChange}
-                            className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
+                            className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
                         >
                             <option value="">Нет велосипеда</option>
                             {sortedBikes.map(b => (
@@ -569,40 +569,40 @@ function TenantModal({ onClose, onSuccess, bikes }) {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Дата первого платежа</label>
-                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Это ожидаемое начисление, а не уже полученная оплата.</p>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата первого платежа</label>
+                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Это ожидаемое начисление, а не уже полученная оплата.</p>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">День еженедельного платежа</label>
-                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">День еженедельного платежа</label>
+                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
                             {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Телефон</label>
-                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Телефон</label>
+                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Telegram</label>
-                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Telegram</label>
+                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                     </div>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Еженедельный платеж (zł)</label>
-                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="150" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Еженедельный платеж (zł)</label>
+                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="150" />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Депозит (zł)</label>
-                    <input type="number" required value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Стоимость залога" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Депозит (zł)</label>
+                    <input type="number" required value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Стоимость залога" />
                 </div>
 
 
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
+                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
                         Создать
                     </button>
-                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md bg-zinc-200 dark:bg-zinc-700 px-4 py-2 text-base font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
+                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md bg-slate-200 dark:bg-slate-700 px-4 py-2 text-base font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
                         Отмена
                     </button>
                 </div>

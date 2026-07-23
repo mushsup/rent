@@ -29,8 +29,8 @@ export default function AdminLogin() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-900 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 bg-zinc-800 p-8 rounded-2xl shadow-2xl border border-zinc-700">
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
                 <div className="text-center">
                     <Bike className="mx-auto h-12 w-12 text-lime-400" />
                     <h2 className="mt-6 text-3xl font-extrabold text-white">Вход</h2>
@@ -56,7 +56,7 @@ export default function AdminLogin() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="appearance-none relative block w-full px-3 py-2 bg-zinc-700 border border-zinc-600 placeholder-zinc-400 text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm"
+                                className="appearance-none relative block w-full px-3 py-2 bg-slate-700 border border-slate-600 placeholder-slate-400 text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm"
                                 placeholder="Email адрес"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -69,7 +69,7 @@ export default function AdminLogin() {
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                className="appearance-none relative block w-full px-3 py-2 bg-zinc-700 border border-zinc-600 placeholder-zinc-400 text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm"
+                                className="appearance-none relative block w-full px-3 py-2 bg-slate-700 border border-slate-600 placeholder-slate-400 text-white rounded-md focus:outline-none focus:ring-lime-500 focus:border-lime-500 sm:text-sm"
                                 placeholder="Пароль"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -81,7 +81,7 @@ export default function AdminLogin() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50"
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 focus:ring-offset-slate-900 transition-colors disabled:opacity-50"
                         >
                             {loading ? 'Вход...' : 'Войти'}
                         </button>

@@ -108,17 +108,17 @@ export default function AdminBikes() {
 
                 <div className="flex flex-col md:flex-row gap-3">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
                             placeholder="Поиск"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-sm focus:ring-2 focus:ring-lime-500 outline-none dark:text-white"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-lg text-sm focus:ring-2 focus:ring-lime-500 outline-none dark:text-white"
                         />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
                             {[
                                 { id: 'all', label: 'Все' },
                                 { id: 'available', label: 'Свободен' },
@@ -130,8 +130,8 @@ export default function AdminBikes() {
                                     onClick={() => setStatusFilter(s.id)}
                                     className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                                         statusFilter === s.id
-                                            ? 'bg-white dark:bg-zinc-700 text-lime-600 dark:text-lime-400 shadow-sm'
-                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                                            ? 'bg-white dark:bg-slate-700 text-lime-600 dark:text-lime-400 shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                                     }`}
                                 >
                                     {s.label}
@@ -139,7 +139,7 @@ export default function AdminBikes() {
                             ))}
                         </div>
 
-                        <div className="flex p-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
                             {[
                                 { id: 'all', label: 'Все' },
                                 { id: 'mtb', label: 'Mtb' },
@@ -150,8 +150,8 @@ export default function AdminBikes() {
                                     onClick={() => setTypeFilter(t.id)}
                                     className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
                                         typeFilter === t.id
-                                            ? 'bg-white dark:bg-zinc-700 text-lime-600 dark:text-lime-400 shadow-sm'
-                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                                            ? 'bg-white dark:bg-slate-700 text-lime-600 dark:text-lime-400 shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                                     }`}
                                 >
                                     {t.label}
@@ -162,18 +162,18 @@ export default function AdminBikes() {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
                 {/* Mobile View: Compact List */}
-                <div className="block sm:hidden divide-y divide-zinc-100 dark:divide-zinc-700/50">
+                <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-700/50">
                     {filteredAndSortedBikes.map((bike) => {
                         const tenant = getTenantForBike(bike.id);
                         return (
                             <div key={bike.id} className="p-3">
                                 <div className="flex justify-between items-start mb-1.5">
                                     <div className="flex items-center gap-2 flex-1 pr-2 min-w-0">
-                                        <div className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-tight truncate">{bike.model}</div>
+                                        <div className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight truncate">{bike.model}</div>
                                         {tenant && (
-                                            <span className="text-[11px] font-medium text-zinc-400 dark:text-white/50 truncate">
+                                            <span className="text-[11px] font-medium text-slate-400 dark:text-white/50 truncate">
                                                 {tenant.name}
                                             </span>
                                         )}
@@ -181,7 +181,7 @@ export default function AdminBikes() {
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                         <button
                                             onClick={() => openEditModal(bike)}
-                                            className="text-zinc-400 hover:text-lime-400 transition-colors p-0.5"
+                                            className="text-slate-400 hover:text-lime-400 transition-colors p-0.5"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
                                         </button>
@@ -189,7 +189,7 @@ export default function AdminBikes() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {bike.status === 'available' && (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-100/50 text-zinc-400 dark:bg-zinc-900/50 dark:text-zinc-500 uppercase border border-zinc-200 dark:border-zinc-800">
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100/50 text-slate-400 dark:bg-slate-900/50 dark:text-slate-500 uppercase border border-slate-200 dark:border-slate-800">
                                             Свободен
                                         </span>
                                     )}
@@ -203,7 +203,7 @@ export default function AdminBikes() {
                                             Ремонт
                                         </span>
                                     )}
-                                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest">{bike.type}</span>
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{bike.type}</span>
                                 </div>
                             </div>
                         );
@@ -212,20 +212,20 @@ export default function AdminBikes() {
 
                 {/* Desktop View: Table */}
                 <div className="hidden sm:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
-                        <thead className="bg-white dark:bg-zinc-900/50">
+                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                        <thead className="bg-white dark:bg-slate-900/50">
                             <tr>
-                                <th scope="col" onClick={() => toggleSort('model')} className="px-6 py-4 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
+                                <th scope="col" onClick={() => toggleSort('model')} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
                                     <div className="flex items-center gap-1">
                                         Модель <ArrowUpDown className="w-3 h-3" />
                                     </div>
                                 </th>
-                                <th scope="col" onClick={() => toggleSort('type')} className="px-6 py-4 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
+                                <th scope="col" onClick={() => toggleSort('type')} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
                                     <div className="flex items-center gap-1">
                                         Тип <ArrowUpDown className="w-3 h-3" />
                                     </div>
                                 </th>
-                                <th scope="col" onClick={() => toggleSort('status')} className="px-6 py-4 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
+                                <th scope="col" onClick={() => toggleSort('status')} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:text-lime-500 transition-colors">
                                     <div className="flex items-center gap-1">
                                         Статус <ArrowUpDown className="w-3 h-3" />
                                     </div>
@@ -233,7 +233,7 @@ export default function AdminBikes() {
                                 <th scope="col" className="relative px-6 py-4"><span className="sr-only">Действия</span></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {filteredAndSortedBikes.map((bike) => {
                                 const tenant = getTenantForBike(bike.id);
                                 return (
@@ -242,22 +242,22 @@ export default function AdminBikes() {
                                         <div className="flex items-center gap-3">
                                             <div className="text-sm font-semibold text-black dark:text-white">{bike.model}</div>
                                             {tenant && (
-                                                <span className="text-sm font-normal text-zinc-400 dark:text-white/50">{tenant.name}</span>
+                                                <span className="text-sm font-normal text-slate-400 dark:text-white/50">{tenant.name}</span>
                                             )}
                                         </div>
                                     </td>
                                     <td className="whitespace-nowrap px-6 py-4">
-                                        <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{bike.type}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest">{bike.type}</div>
                                     </td>
                                     <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                        {bike.status === 'available' && <span className="inline-flex rounded-md bg-zinc-100/50 dark:bg-zinc-900/40 px-2.5 py-1 text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide border border-zinc-200 dark:border-zinc-800">Свободен</span>}
+                                        {bike.status === 'available' && <span className="inline-flex rounded-md bg-slate-100/50 dark:bg-slate-900/40 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide border border-slate-200 dark:border-slate-800">Свободен</span>}
                                         {bike.status === 'in_rent' && <span className="inline-flex rounded-md bg-green-100/30 dark:bg-green-900/20 px-2.5 py-1 text-[11px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wide border border-green-200/30 dark:border-green-800/30">В аренде</span>}
                                         {bike.status === 'maintenance' && <span className="inline-flex rounded-md bg-orange-100/30 dark:bg-orange-900/20 px-2.5 py-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide border border-orange-200/30 dark:border-orange-800/30">Ремонт</span>}
                                     </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                                             <button
                                                 onClick={() => openEditModal(bike)}
-                                                className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors inline-block p-1"
+                                                className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors inline-block p-1"
                                                 title="Редактировать"
                                             >
                                                 <Edit2 className="w-4 h-4" />
@@ -271,12 +271,12 @@ export default function AdminBikes() {
                 </div>
 
                 {!loading && bikes.length === 0 && (
-                    <div className="px-6 py-8 text-center text-zinc-400 dark:text-zinc-500 text-sm">
+                    <div className="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
                         Велосипеды не найдены. Добавьте свой первый велосипед!
                     </div>
                 )}
                 {loading && (
-                    <div className="px-6 py-8 text-center text-zinc-400 dark:text-zinc-500 text-sm flex items-center justify-center">
+                    <div className="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm flex items-center justify-center">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-lime-500 mr-2"></div> Загрузка...
                     </div>
                 )}
@@ -284,9 +284,9 @@ export default function AdminBikes() {
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto">
                             <BikeModal
                                 bike={editingBike}
                                 assignedTenant={tenants.find(tenant => tenant.bike_id === editingBike?.id)}
@@ -355,21 +355,21 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-3">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{isEdit ? 'Редактировать велосипед' : 'Новый велосипед'}</h3>
-                <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{isEdit ? 'Редактировать велосипед' : 'Новый велосипед'}</h3>
+                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                     <X className="w-5 h-5" />
                 </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6 mt-4">
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300 mb-2">Модель</label>
-                    <input type="text" required value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value })} className="block w-full rounded-md bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Например: Engwe EP-2 Pro" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Модель</label>
+                    <input type="text" required value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value })} className="block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Например: Engwe EP-2 Pro" />
                 </div>
                 <div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300 mb-2">Тип</label>
-                        <div className="flex p-1 bg-zinc-100 dark:bg-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Тип</label>
+                        <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-800">
                             {['mtb', 'fat'].map((t) => (
                                 <button
                                     key={t}
@@ -378,7 +378,7 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                                     className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-widest rounded-md transition-all ${
                                         formData.type === t
                                             ? 'bg-lime-600 text-white shadow-sm'
-                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                                     }`}
                                 >
                                     {t}
@@ -389,8 +389,8 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300 mb-2">Статус</label>
-                    <div className="flex p-1 bg-zinc-100 dark:bg-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Статус</label>
+                    <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-800">
                         {[
                             { id: 'available', label: 'Свободен' },
                             ...(assignedTenant ? [{ id: 'in_rent', label: 'В аренде' }] : []),
@@ -403,7 +403,7 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                                 className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
                                     formData.status === s.id
                                         ? (s.id === 'in_rent' ? 'bg-green-600 text-white' : s.id === 'maintenance' ? 'bg-orange-600 text-white' : 'bg-lime-600 text-white') + ' shadow-sm'
-                                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                                 }`}
                             >
                                 {s.label}
@@ -425,7 +425,7 @@ function BikeModal({ bike, assignedTenant, onClose, onSuccess }) {
                     <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 sm:col-start-2 sm:text-sm disabled:opacity-50">
                         {isEdit ? 'Сохранить' : 'Создать'}
                     </button>
-                    <button type="button" onClick={onClose} className={`mt-3 inline-flex w-full justify-center rounded-md bg-zinc-200 dark:bg-zinc-700 px-4 py-2 text-base font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-600 ${isEdit ? 'sm:col-start-1' : 'sm:col-start-1'} sm:mt-0 sm:text-sm transition-colors`}>
+                    <button type="button" onClick={onClose} className={`mt-3 inline-flex w-full justify-center rounded-md bg-slate-200 dark:bg-slate-700 px-4 py-2 text-base font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 ${isEdit ? 'sm:col-start-1' : 'sm:col-start-1'} sm:mt-0 sm:text-sm transition-colors`}>
                         Отмена
                     </button>
                 </div>

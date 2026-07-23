@@ -109,7 +109,7 @@ export default function AdminTenantDetail() {
         }
     };
 
-    if (loading) return <div className="text-zinc-600 dark:text-zinc-300 p-8">Загрузка...</div>;
+    if (loading) return <div className="text-slate-600 dark:text-slate-300 p-8">Загрузка...</div>;
     if (tenantError || bikesError) return <div className="text-red-400 p-8">Не удалось загрузить арендатора. {tenantQueryError?.message || 'Проверьте подключение к базе данных.'}</div>;
     if (!tenant || !editForm) return <div className="text-red-400 p-8">Арендатор не найден</div>;
 
@@ -131,46 +131,46 @@ export default function AdminTenantDetail() {
                 </Link>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden p-4 sm:p-6 relative">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden p-4 sm:p-6 relative">
                 {!isEditing ? (
                     <>
-                        <button onClick={() => setIsEditing(true)} className="absolute top-6 right-6 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 p-2 rounded-lg">
+                        <button onClick={() => setIsEditing(true)} className="absolute top-6 right-6 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 p-2 rounded-lg">
                             <Edit2 className="w-5 h-5" />
                         </button>
-                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white pr-10 flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white pr-10 flex items-center gap-3">
                             {tenant.name}
-                            {tenant.is_archived && <span className="bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-2.5 py-1 rounded text-xs uppercase font-bold tracking-wider">Архив</span>}
+                            {tenant.is_archived && <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded text-xs uppercase font-bold tracking-wider">Архив</span>}
                         </h1>
-                        <p className="text-lime-400 font-medium mt-1">/{tenant.slug} — <span className="text-zinc-500 dark:text-zinc-400">{tenant.bikes?.model || 'Нет велосипеда'}</span></p>
+                        <p className="text-lime-400 font-medium mt-1">/{tenant.slug} — <span className="text-slate-500 dark:text-slate-400">{tenant.bikes?.model || 'Нет велосипеда'}</span></p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-6">
-                            <div className="bg-zinc-100 dark:bg-zinc-700/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <span className="block text-zinc-400 dark:text-zinc-500 mb-1">Ставка в неделю:</span>
-                                <span className="font-semibold text-zinc-900 dark:text-white text-lg">{getTenantWeeklyPayment(tenant)}&nbsp;zł</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <span className="block text-slate-400 dark:text-slate-500 mb-1">Ставка в неделю:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white text-lg">{getTenantWeeklyPayment(tenant)}&nbsp;zł</span>
                             </div>
-                            <div className="bg-zinc-100 dark:bg-zinc-700/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <span className="block text-zinc-400 dark:text-zinc-500 mb-1">Депозит:</span>
-                                <span className="font-semibold text-zinc-900 dark:text-white text-lg">{tenant.deposit || 0}&nbsp;zł</span>
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <span className="block text-slate-400 dark:text-slate-500 mb-1">Депозит:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white text-lg">{tenant.deposit || 0}&nbsp;zł</span>
                             </div>
-                            <div className="bg-zinc-100 dark:bg-zinc-700/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <span className="block text-zinc-400 dark:text-zinc-500 mb-2">Телефон:</span>
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <span className="block text-slate-400 dark:text-slate-500 mb-2">Телефон:</span>
                                 {tenant.phone ? (
                                     <a href={getPhoneHref(tenant.phone)} className="inline-flex items-center gap-2 font-semibold text-lime-500 hover:text-lime-400">
                                         <Phone className="h-4 w-4" /> {tenant.phone}
                                     </a>
-                                ) : <span className="text-zinc-500 dark:text-zinc-400">Не указан</span>}
+                                ) : <span className="text-slate-500 dark:text-slate-400">Не указан</span>}
                             </div>
-                            <div className="bg-zinc-100 dark:bg-zinc-700/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <span className="block text-zinc-400 dark:text-zinc-500 mb-2">Telegram:</span>
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <span className="block text-slate-400 dark:text-slate-500 mb-2">Telegram:</span>
                                 {tenant.telegram_username ? (
                                     <a href={`https://t.me/${normalizeTelegramUsername(tenant.telegram_username)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-semibold text-lime-500 hover:text-lime-400">
                                         <Send className="h-4 w-4" /> @{normalizeTelegramUsername(tenant.telegram_username)}
                                     </a>
-                                ) : <span className="text-zinc-500 dark:text-zinc-400">Не указан</span>}
+                                ) : <span className="text-slate-500 dark:text-slate-400">Не указан</span>}
                             </div>
                             <div className="sm:col-span-2 bg-teal-900/10 border border-teal-900/30 p-4 rounded-lg">
-                                <span className="block text-zinc-500 dark:text-zinc-400 mb-1 text-xs uppercase tracking-wider">Заметка администратора</span>
-                                <span className="text-zinc-600 dark:text-zinc-300 whitespace-pre-line">{tenant.admin_comment || 'Нет комментария'}</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-1 text-xs uppercase tracking-wider">Заметка администратора</span>
+                                <span className="text-slate-600 dark:text-slate-300 whitespace-pre-line">{tenant.admin_comment || 'Нет комментария'}</span>
                             </div>
                         </div>
                     </>
@@ -178,11 +178,11 @@ export default function AdminTenantDetail() {
                     <form onSubmit={handleUpdateTenant} className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Имя</label>
-                                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Имя</label>
+                                <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Велосипед</label>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Велосипед</label>
                                 <BikeSelector
                                     bikes={sortedBikes}
                                     selectedBikeId={editForm.bike_id}
@@ -190,42 +190,42 @@ export default function AdminTenantDetail() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Псевдоним ссылки</label>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Псевдоним ссылки</label>
                                 <div className="mt-1 flex rounded-md shadow-sm">
-                                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-zinc-400 dark:border-zinc-600 bg-zinc-200 dark:bg-zinc-700 px-3 text-zinc-500 dark:text-zinc-400 sm:text-sm">/</span>
-                                    <input type="text" value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 px-3 text-slate-500 dark:text-slate-400 sm:text-sm">/</span>
+                                    <input type="text" value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Депозит (zł)</label>
-                                <input type="number" value={editForm.deposit || ''} onChange={e => setEditForm({ ...editForm, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Депозит (zł)</label>
+                                <input type="number" value={editForm.deposit || ''} onChange={e => setEditForm({ ...editForm, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Телефон</label>
-                                <input type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Телефон</label>
+                                <input type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Telegram</label>
-                                <input type="text" value={editForm.telegram_username || ''} onChange={e => setEditForm({ ...editForm, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Telegram</label>
+                                <input type="text" value={editForm.telegram_username || ''} onChange={e => setEditForm({ ...editForm, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Еженедельный платеж (zł)</label>
-                                <input type="number" min="0" value={editForm.weekly_payment || ''} onChange={e => setEditForm({ ...editForm, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Еженедельный платеж (zł)</label>
+                                <input type="number" min="0" value={editForm.weekly_payment || ''} onChange={e => setEditForm({ ...editForm, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">День еженедельного платежа</label>
-                                <select value={editForm.payment_day || DEFAULT_PAYMENT_DAY} onChange={e => setEditForm({ ...editForm, payment_day: Number(e.target.value) })} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">День еженедельного платежа</label>
+                                <select value={editForm.payment_day || DEFAULT_PAYMENT_DAY} onChange={e => setEditForm({ ...editForm, payment_day: Number(e.target.value) })} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
                                     {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
                                 </select>
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Комментарий (видно арендатору)</label>
-                                <textarea value={editForm.admin_comment || ''} onChange={e => setEditForm({ ...editForm, admin_comment: e.target.value })} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" rows={3} />
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Комментарий (видно арендатору)</label>
+                                <textarea value={editForm.admin_comment || ''} onChange={e => setEditForm({ ...editForm, admin_comment: e.target.value })} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" rows={3} />
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-zinc-700/50">
-                            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">Опасная зона</h3>
+                        <div className="mt-8 pt-6 border-t border-slate-700/50">
+                            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Опасная зона</h3>
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <button type="button" onClick={() => setIsArchiveModalOpen(true)} className="flex items-center justify-center px-4 py-2 border border-orange-700/50 bg-orange-900/20 text-orange-400 rounded-md hover:bg-orange-900/40 transition-colors">
                                     <Archive className="w-4 h-4 mr-2" />
@@ -237,25 +237,25 @@ export default function AdminTenantDetail() {
                                 </button>
                             </div>
                         </div>
-                        <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                            <button type="button" onClick={() => setIsEditing(false)} className="rounded-md border border-zinc-400 dark:border-zinc-600 bg-zinc-200 dark:bg-zinc-700 py-2 px-4 shadow-sm text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-600 transition-colors">Отмена</button>
-                            <button type="submit" className="rounded-md border border-transparent bg-lime-600 py-2 px-4 shadow-sm text-sm font-medium text-zinc-900 dark:text-white hover:bg-lime-500 transition-colors">Сохранить</button>
+                        <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                            <button type="button" onClick={() => setIsEditing(false)} className="rounded-md border border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 py-2 px-4 shadow-sm text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-600 transition-colors">Отмена</button>
+                            <button type="submit" className="rounded-md border border-transparent bg-lime-600 py-2 px-4 shadow-sm text-sm font-medium text-slate-900 dark:text-white hover:bg-lime-500 transition-colors">Сохранить</button>
                         </div>
                     </form>
                 )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-lg shadow border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6">
+                <div className="md:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow border border-slate-200 dark:border-slate-800 p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium text-zinc-900 dark:text-white flex items-center">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white flex items-center">
                             <Calendar className="w-5 h-5 mr-2 text-lime-400" /> Платежи
                         </h3>
                         <div className="flex gap-2 relative">
-                            <button title="Добавить корректировку" onClick={() => { setEditingAdjustment(null); setIsAdjustmentModalOpen(true); }} className="flex items-center bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white p-2 rounded-md transition-colors">
+                            <button title="Добавить корректировку" onClick={() => { setEditingAdjustment(null); setIsAdjustmentModalOpen(true); }} className="flex items-center bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white p-2 rounded-md transition-colors">
                                 <Pencil className="w-4 h-4" />
                             </button>
-                            <button title="Добавить платеж" onClick={() => { setEditingPayment(null); setIsPaymentModalOpen(true); }} className="flex items-center bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white p-2 rounded-md transition-colors">
+                            <button title="Добавить платеж" onClick={() => { setEditingPayment(null); setIsPaymentModalOpen(true); }} className="flex items-center bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white p-2 rounded-md transition-colors">
                                 <CheckCircle className="w-4 h-4" />
                             </button>
                         </div>
@@ -276,25 +276,25 @@ export default function AdminTenantDetail() {
                                 <li>
                                     <div className="relative pb-8">
                                         {tenant.payments.length > 0 && (
-                                            <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
+                                            <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
                                         )}
                                         <div className="relative flex space-x-3 items-center">
                                             <div>
-                                                <span className={`h-8 w-8 rounded-full flex items-center justify-center border ${isOverdue ? 'bg-red-900/50 border-red-700/50' : 'bg-zinc-200 dark:bg-zinc-700 border-zinc-400 dark:border-zinc-600'}`}>
-                                                    <Calendar className={`h-4 w-4 ${isOverdue ? 'text-red-400' : 'text-zinc-500 dark:text-zinc-400'}`} aria-hidden="true" />
+                                                <span className={`h-8 w-8 rounded-full flex items-center justify-center border ${isOverdue ? 'bg-red-900/50 border-red-700/50' : 'bg-slate-200 dark:bg-slate-700 border-slate-400 dark:border-slate-600'}`}>
+                                                    <Calendar className={`h-4 w-4 ${isOverdue ? 'text-red-400' : 'text-slate-500 dark:text-slate-400'}`} aria-hidden="true" />
                                                 </span>
                                             </div>
                                             <div className="flex min-w-0 flex-1 justify-between items-center space-x-4 pt-1.5">
                                                 <div className="w-1/3">
-                                                    <time className={isOverdue ? "text-red-400 font-bold text-sm" : "text-zinc-500 dark:text-zinc-400 font-medium text-sm"} dateTime={nextPaymentDate.toISOString()}>
+                                                    <time className={isOverdue ? "text-red-400 font-bold text-sm" : "text-slate-500 dark:text-slate-400 font-medium text-sm"} dateTime={nextPaymentDate.toISOString()}>
                                                         {format(new Date(nextPaymentDate), 'dd MMM yyyy', { locale: ru })}
                                                     </time>
                                                 </div>
                                                 <div className="w-1/3 text-center">
-                                                    <span className={`font-bold px-2 py-0.5 rounded text-sm ${isOverdue ? "text-red-400 bg-red-900/20" : "text-zinc-500 dark:text-zinc-400 bg-zinc-200/50 dark:bg-zinc-700/50"}`}>{expectedAmount}&nbsp;zł</span>
+                                                    <span className={`font-bold px-2 py-0.5 rounded text-sm ${isOverdue ? "text-red-400 bg-red-900/20" : "text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-slate-700/50"}`}>{expectedAmount}&nbsp;zł</span>
                                                 </div>
                                                 <div className="w-1/3 text-right">
-                                                    <button onClick={() => { setEditingPayment({ amount: expectedAmount, payment_date: format(new Date(nextPaymentDate), 'yyyy-MM-dd'), isExpected: true }); setIsPaymentModalOpen(true); }} className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-600/50" title="Изменить ожидаемый платеж">
+                                                    <button onClick={() => { setEditingPayment({ amount: expectedAmount, payment_date: format(new Date(nextPaymentDate), 'yyyy-MM-dd'), isExpected: true }); setIsPaymentModalOpen(true); }} className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-600/50" title="Изменить ожидаемый платеж">
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -309,7 +309,7 @@ export default function AdminTenantDetail() {
                                 <li key={payment.id}>
                                     <div className="relative pb-8">
                                         {paymentIdx !== tenant.payments.length - 1 ? (
-                                            <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
+                                            <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
                                         ) : null}
                                         <div className="relative flex space-x-3 items-center">
                                             <div>
@@ -319,16 +319,16 @@ export default function AdminTenantDetail() {
                                             </div>
                                             <div className="flex min-w-0 flex-1 justify-between items-center space-x-4 pt-1.5">
                                                 <div className="w-1/3">
-                                                    <time className="text-zinc-600 dark:text-zinc-300 font-medium text-sm" dateTime={payment.payment_date}>{format(new Date(payment.payment_date), 'dd MMM yyyy', { locale: ru })}</time>
+                                                    <time className="text-slate-600 dark:text-slate-300 font-medium text-sm" dateTime={payment.payment_date}>{format(new Date(payment.payment_date), 'dd MMM yyyy', { locale: ru })}</time>
                                                 </div>
                                                 <div className="w-1/3 text-center">
-                                                    <span className="font-bold text-zinc-900 dark:text-white bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded text-sm">{payment.amount}&nbsp;zł</span>
+                                                    <span className="font-bold text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-sm">{payment.amount}&nbsp;zł</span>
                                                 </div>
                                                 <div className="w-1/3 flex justify-end gap-2">
-                                                    <button onClick={() => { setEditingPayment(payment); setIsPaymentModalOpen(true); }} className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-600/50">
+                                                    <button onClick={() => { setEditingPayment(payment); setIsPaymentModalOpen(true); }} className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-600/50">
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => setDeletingRecord({ type: 'payment', id: payment.id })} className="text-red-400 hover:text-zinc-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
+                                                    <button onClick={() => setDeletingRecord({ type: 'payment', id: payment.id })} className="text-red-400 hover:text-slate-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -338,7 +338,7 @@ export default function AdminTenantDetail() {
                                 </li>
                             ))}
                             {tenant.payments.length === 0 && (
-                                <div className="text-center py-4 text-zinc-400 dark:text-zinc-500 text-sm">Оплат пока не было</div>
+                                <div className="text-center py-4 text-slate-400 dark:text-slate-500 text-sm">Оплат пока не было</div>
                             )}
                         </ul>
                     </div>}
@@ -348,20 +348,20 @@ export default function AdminTenantDetail() {
             {/* Delete Confirmation Modal */}
             {deletingRecord && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setDeletingRecord(null); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setDeletingRecord(null); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
-                            <button onClick={() => setDeletingRecord(null)} className="absolute top-4 right-4 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                            <button onClick={() => setDeletingRecord(null)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                                 <X className="w-5 h-5" />
                             </button>
                             <div className="flex items-center text-red-400 mb-4 pr-6">
                                 <AlertCircle className="w-6 h-6 mr-2" />
-                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Удалить {deletingRecord.type === 'adjustment' ? 'корректировку' : 'платеж'}?</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Удалить {deletingRecord.type === 'adjustment' ? 'корректировку' : 'платеж'}?</h3>
                             </div>
-                            <p className="text-zinc-600 dark:text-zinc-300 text-sm mb-6">Эта операция удалит запись из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно.</p>
+                            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">Эта операция удалит запись из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно.</p>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => setDeletingRecord(null)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
-                                <button onClick={confirmDeleteRecord} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-zinc-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
+                                <button onClick={() => setDeletingRecord(null)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
+                                <button onClick={confirmDeleteRecord} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
                             </div>
                         </div>
                     </div>
@@ -370,9 +370,9 @@ export default function AdminTenantDetail() {
 
             {isPaymentModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsPaymentModalOpen(false); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsPaymentModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
                             <PaymentModalForm payment={editingPayment} tenant={tenant} onClose={() => setIsPaymentModalOpen(false)} onSuccess={() => { setIsPaymentModalOpen(false); queryClient.invalidateQueries({ queryKey: ['tenant', id] }); queryClient.invalidateQueries({ queryKey: ['tenants'] }); }} />
                         </div>
                     </div>
@@ -381,9 +381,9 @@ export default function AdminTenantDetail() {
 
             {isAdjustmentModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsAdjustmentModalOpen(false); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsAdjustmentModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
                             <AdjustmentModalForm adjustment={editingAdjustment} tenant={tenant} onClose={() => setIsAdjustmentModalOpen(false)} onSuccess={() => { setIsAdjustmentModalOpen(false); queryClient.invalidateQueries({ queryKey: ['tenant', id] }); queryClient.invalidateQueries({ queryKey: ['tenants'] }); }} />
                         </div>
                     </div>
@@ -393,24 +393,24 @@ export default function AdminTenantDetail() {
             {/* Archive Confirmation Modal */}
             {isArchiveModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setIsArchiveModalOpen(false); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setIsArchiveModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
-                            <button onClick={() => setIsArchiveModalOpen(false)} className="absolute top-4 right-4 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                            <button onClick={() => setIsArchiveModalOpen(false)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                                 <X className="w-5 h-5" />
                             </button>
                             <div className="flex items-center text-orange-400 mb-4 pr-6">
                                 <Archive className="w-6 h-6 mr-2" />
-                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{tenant.is_archived ? "Вернуть из архива?" : "В архив?"}</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{tenant.is_archived ? "Вернуть из архива?" : "В архив?"}</h3>
                             </div>
-                            <p className="text-zinc-600 dark:text-zinc-300 text-sm mb-6">
+                            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">
                                 {tenant.is_archived
                                     ? "Арендатор снова появится в общем списке активных клиентов."
                                     : "Арендатор будет скрыт, велосипед станет свободным, а у арендатора будет выбран вариант «Нет велосипеда». Будущие автоматические начисления остановятся."}
                             </p>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => setIsArchiveModalOpen(false)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
-                                <button onClick={confirmToggleArchive} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-zinc-900 dark:text-white text-sm font-medium rounded-md transition-colors">
+                                <button onClick={() => setIsArchiveModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
+                                <button onClick={confirmToggleArchive} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-slate-900 dark:text-white text-sm font-medium rounded-md transition-colors">
                                     {tenant.is_archived ? "Вернуть" : "В архив"}
                                 </button>
                             </div>
@@ -422,22 +422,22 @@ export default function AdminTenantDetail() {
             {/* Delete Tenant Modal */}
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(false); }} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setIsDeleteModalOpen(false); }} />
                     <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
-                            <button onClick={() => setIsDeleteModalOpen(false)} className="absolute top-4 right-4 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-sm w-full p-6 shadow-2xl relative pointer-events-auto">
+                            <button onClick={() => setIsDeleteModalOpen(false)} className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                                 <X className="w-5 h-5" />
                             </button>
                             <div className="flex items-center text-red-500 mb-4 pr-6">
                                 <AlertCircle className="w-6 h-6 mr-2" />
-                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Удалить арендатора?</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Удалить арендатора?</h3>
                             </div>
-                            <p className="text-zinc-600 dark:text-zinc-300 text-sm mb-6">
+                            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">
                                 Вы уверены, что хотите полностью удалить этого арендатора? Это действие необратимо и удалит <strong>все связанные платежи</strong>.
                             </p>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
-                                <button onClick={confirmDeleteTenant} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-zinc-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
+                                <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-md transition-colors">Отмена</button>
+                                <button onClick={confirmDeleteTenant} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white text-sm font-medium rounded-md transition-colors">Удалить</button>
                             </div>
                         </div>
                     </div>
@@ -457,12 +457,12 @@ function BikeStatusBadge({ status }) {
         maintenance: 'Ремонт'
     };
     const statusStyles = {
-        available: 'border-zinc-300 dark:border-zinc-600 bg-zinc-100/70 dark:bg-zinc-900/70 text-zinc-500 dark:text-zinc-400',
+        available: 'border-slate-300 dark:border-slate-600 bg-slate-100/70 dark:bg-slate-900/70 text-slate-500 dark:text-slate-400',
         in_rent: 'border-green-200/30 dark:border-green-800/30 bg-green-100/30 dark:bg-green-900/20 text-green-600 dark:text-green-400',
         maintenance: 'border-orange-200/30 dark:border-orange-800/30 bg-orange-100/30 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
     };
     const dotStyles = {
-        available: 'bg-zinc-400',
+        available: 'bg-slate-400',
         in_rent: 'bg-green-500',
         maintenance: 'bg-orange-500'
     };
@@ -486,19 +486,19 @@ function BikeSelector({ bikes, selectedBikeId, onChange }) {
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
                 onClick={() => setIsOpen(current => !current)}
-                className="flex w-full items-center justify-between rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 text-left focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
+                className="flex w-full items-center justify-between rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 text-left focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
             >
                 <span className="truncate">{selectedBike?.model || 'Нет велосипеда'}</span>
                 <ChevronDown className={`ml-2 h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOpen && (
-                <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 p-1 shadow-xl" role="listbox">
+                <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-slate-400 dark:border-slate-600 bg-white dark:bg-slate-900 p-1 shadow-xl" role="listbox">
                     <button
                         type="button"
                         role="option"
                         aria-selected={!selectedBikeId}
                         onClick={() => { onChange(''); setIsOpen(false); }}
-                        className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                        className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                         <span>Нет велосипеда</span>
                     </button>
@@ -509,7 +509,7 @@ function BikeSelector({ bikes, selectedBikeId, onChange }) {
                             role="option"
                             aria-selected={bike.id === selectedBikeId}
                             onClick={() => { onChange(bike.id); setIsOpen(false); }}
-                            className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                            className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
                             <span className="min-w-0 truncate">{bike.model}</span>
                             <BikeStatusBadge status={bike.status} />
@@ -542,13 +542,13 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                             : 'Оплата';
                     const amountPrefix = isExpected || (isAdjustment && entry.direction === 'charge') ? '+' : '−';
                     const amountClass = isExpected
-                        ? 'text-zinc-700 dark:text-zinc-200'
+                        ? 'text-slate-700 dark:text-slate-200'
                         : isAdjustment && entry.direction === 'charge'
                             ? 'text-orange-400'
                             : 'text-green-400';
 
                     return (
-                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId || 'scheduled'}`} className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 p-3">
+                        <li key={`${entry.type}-${entry.dateKey}-${entry.paymentId || entry.adjustmentId || 'scheduled'}`} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-3">
                             <div className="flex items-start gap-3">
                                 <span className={`mt-0.5 h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center border ${isExpected ? 'bg-white/10 border-white/20' : isAdjustment ? 'bg-orange-900/30 border-orange-700/50' : 'bg-lime-900/50 border-lime-700/50'}`}>
                                     {isExpected ? <Calendar className="h-4 w-4 text-white" /> : isAdjustment ? <Pencil className="h-4 w-4 text-orange-400" /> : <DollarSign className="h-4 w-4 text-lime-400" />}
@@ -556,7 +556,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
-                                            <div className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                                            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                                 {entryTitle}
                                                 {isExpected && entry.isAutomatic && (
                                                     <span className="rounded-full border border-lime-300/50 bg-lime-100/50 px-2 py-0.5 text-[10px] font-medium text-lime-700 dark:border-lime-700/50 dark:bg-lime-900/30 dark:text-lime-300">
@@ -564,7 +564,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                                                     </span>
                                                 )}
                                             </div>
-                                            <time className="text-xs text-zinc-500 dark:text-zinc-400" dateTime={entry.dateKey}>
+                                            <time className="text-xs text-slate-500 dark:text-slate-400" dateTime={entry.dateKey}>
                                                 {format(entry.date, 'dd.MM.yy')}, {weekday}
                                             </time>
                                         </div>
@@ -573,36 +573,36 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                                         </span>
                                     </div>
                                     <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                                        <span className="text-zinc-500 dark:text-zinc-400">Баланс</span>
+                                        <span className="text-slate-500 dark:text-slate-400">Баланс</span>
                                         <span className={`font-bold ${entry.balance > 0 ? 'text-red-400' : entry.balance < 0 ? 'text-yellow-400' : 'text-green-400'}`}>
                                             {balanceLabel}
                                         </span>
                                     </div>
                                     {entry.comment && (
-                                        <p className="mt-2 border-t border-zinc-200 dark:border-zinc-800 pt-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-pre-line">
+                                        <p className="mt-2 border-t border-slate-200 dark:border-slate-800 pt-2 text-xs text-slate-600 dark:text-slate-300 whitespace-pre-line">
                                             {entry.comment}
                                         </p>
                                     )}
                                 </div>
                                 {isExpected && entry.isCurrentExpected ? (
-                                    <button onClick={() => onEditExpected(entry)} className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-zinc-200/50 dark:bg-zinc-700/50 border border-zinc-600/50" title="Изменить ожидаемый платеж">
+                                    <button onClick={() => onEditExpected(entry)} className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-slate-200/50 dark:bg-slate-700/50 border border-slate-600/50" title="Изменить ожидаемый платеж">
                                         <Pencil className="w-4 h-4" />
                                     </button>
                                 ) : isAdjustment ? (
                                     <div className="flex gap-1">
-                                        <button onClick={() => onEditAdjustment({ id: entry.adjustmentId, amount: entry.amount, direction: entry.direction, adjustment_date: entry.dateKey, comment: entry.comment || '' })} className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-zinc-200/50 dark:bg-zinc-700/50 border border-zinc-600/50" title="Изменить корректировку">
+                                        <button onClick={() => onEditAdjustment({ id: entry.adjustmentId, amount: entry.amount, direction: entry.direction, adjustment_date: entry.dateKey, comment: entry.comment || '' })} className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-slate-200/50 dark:bg-slate-700/50 border border-slate-600/50" title="Изменить корректировку">
                                             <Pencil className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => onDeleteAdjustment(entry.adjustmentId)} className="text-red-400 hover:text-zinc-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20" title="Удалить корректировку">
+                                        <button onClick={() => onDeleteAdjustment(entry.adjustmentId)} className="text-red-400 hover:text-slate-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20" title="Удалить корректировку">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
                                 ) : !isExpected && payment ? (
                                     <div className="flex gap-1">
-                                        <button onClick={() => onEditPayment(payment)} className="text-zinc-500 dark:text-zinc-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-zinc-200/50 dark:bg-zinc-700/50 border border-zinc-600/50">
+                                        <button onClick={() => onEditPayment(payment)} className="text-slate-500 dark:text-slate-400 hover:text-lime-400 transition-colors p-1.5 rounded bg-slate-200/50 dark:bg-slate-700/50 border border-slate-600/50">
                                             <Pencil className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => onDeletePayment(entry.paymentId)} className="text-red-400 hover:text-zinc-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
+                                        <button onClick={() => onDeletePayment(entry.paymentId)} className="text-red-400 hover:text-slate-900 dark:hover:text-white hover:bg-red-500 transition-colors p-1.5 rounded bg-red-900/20 border border-red-500/20">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -612,7 +612,7 @@ function PaymentLedgerList({ entries, payments, onEditPayment, onEditExpected, o
                     );
                 })}
                 {entries.length === 0 && (
-                    <div className="text-center py-4 text-zinc-400 dark:text-zinc-500 text-sm">Платежей пока нет</div>
+                    <div className="text-center py-4 text-slate-400 dark:text-slate-500 text-sm">Платежей пока нет</div>
                 )}
             </ul>
         </div>
@@ -649,34 +649,34 @@ function AdjustmentModalForm({ tenant, adjustment, onClose, onSuccess }) {
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium leading-6 text-zinc-900 dark:text-white">{isEdit ? 'Редактировать корректировку' : 'Добавить корректировку'}</h3>
-                <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                <h3 className="text-lg font-medium leading-6 text-slate-900 dark:text-white">{isEdit ? 'Редактировать корректировку' : 'Добавить корректировку'}</h3>
+                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                     <X className="w-5 h-5" />
                 </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Действие</label>
-                    <select value={direction} onChange={e => setDirection(e.target.value)} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Действие</label>
+                    <select value={direction} onChange={e => setDirection(e.target.value)} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
                         <option value="credit">Списать долг</option>
                         <option value="charge">Увеличить долг</option>
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Сумма (zł)</label>
-                    <input type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Сумма (zł)</label>
+                    <input type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Дата</label>
-                    <input type="date" required value={adjustmentDate} onChange={e => setAdjustmentDate(e.target.value)} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата</label>
+                    <input type="date" required value={adjustmentDate} onChange={e => setAdjustmentDate(e.target.value)} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Причина корректировки</label>
-                    <textarea required value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: списание долга по договорённости" className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Причина корректировки</label>
+                    <textarea required value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: списание долга по договорённости" className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-zinc-900 dark:text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900 sm:col-start-2 sm:text-sm disabled:opacity-50">Сохранить</button>
-                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md border border-zinc-400 dark:border-zinc-600 bg-zinc-200 dark:bg-zinc-700 px-4 py-2 text-base font-medium text-zinc-600 dark:text-zinc-300 shadow-sm hover:bg-zinc-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">Отмена</button>
+                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-slate-900 dark:text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:col-start-2 sm:text-sm disabled:opacity-50">Сохранить</button>
+                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md border border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 px-4 py-2 text-base font-medium text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">Отмена</button>
                 </div>
             </form>
         </div>
@@ -707,36 +707,36 @@ function PaymentModalForm({ tenant, payment, onClose, onSuccess }) {
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium leading-6 text-zinc-900 dark:text-white">{isEdit ? (payment.isExpected ? 'Редактировать ожидаемый платеж' : 'Редактировать платеж') : 'Добавить платеж'}</h3>
-                <button onClick={onClose} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors bg-zinc-200/50 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 p-1 rounded-md">
+                <h3 className="text-lg font-medium leading-6 text-slate-900 dark:text-white">{isEdit ? (payment.isExpected ? 'Редактировать ожидаемый платеж' : 'Редактировать платеж') : 'Добавить платеж'}</h3>
+                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
                     <X className="w-5 h-5" />
                 </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Сумма (zł)</label>
-                    <input type="number" required min={payment?.isExpected ? 0 : 0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Сумма (zł)</label>
+                    <input type="number" required min={payment?.isExpected ? 0 : 0.01} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Дата платежа</label>
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата платежа</label>
                     <div className="relative mt-1">
-                        <input type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="block w-full appearance-none rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
+                        <input type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="block w-full appearance-none rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
                     </div>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-300">Комментарий</label>
-                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: частичная оплата, перенос, договорённость" className="mt-1 block w-full rounded-md bg-zinc-200 dark:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Комментарий</label>
+                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} placeholder="Например: частичная оплата, перенос, договорённость" className="mt-1 block w-full rounded-md bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                 </div>
-                <p className="rounded-md border border-zinc-300/60 bg-zinc-100/60 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-400">
+                <p className="rounded-md border border-slate-300/60 bg-slate-100/60 px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-400">
                     {payment?.isExpected
                         ? 'Это разовый перенос ожидаемого начисления. Следующие начисления снова пойдут по выбранному дню недели.'
                         : 'Оплата уменьшает самый старый долг. Дата следующего начисления не перескакивает при полной или частичной оплате.'}
                 </p>
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-zinc-900 dark:text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-zinc-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
+                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-slate-900 dark:text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
                         Сохранить
                     </button>
-                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md border border-zinc-400 dark:border-zinc-600 bg-zinc-200 dark:bg-zinc-700 px-4 py-2 text-base font-medium text-zinc-600 dark:text-zinc-300 shadow-sm hover:bg-zinc-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
+                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md border border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 px-4 py-2 text-base font-medium text-slate-600 dark:text-slate-300 shadow-sm hover:bg-slate-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
                         Отмена
                     </button>
                 </div>
