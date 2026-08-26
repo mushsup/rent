@@ -1,10 +1,14 @@
 import { format, parseISO } from 'date-fns';
-import { buildPaymentLedger, getTenantWeeklyPayment } from './paymentLedger';
+import { buildPaymentLedger } from './paymentLedger';
 import type { Payment, Tenant } from '../types';
 
 export { getTenantWeeklyPayment } from './paymentLedger';
 
-export function calculateDebt(tenant: Tenant | null | undefined, payments: Payment[] = []) {
+export function calculateDebt(
+    tenant: Tenant | null | undefined,
+    payments: Payment[] = [],
+    referenceDate: Date | string = new Date(),
+) {
     if (!tenant) {
         return {
             totalDebt: 0,
@@ -20,16 +24,12 @@ export function calculateDebt(tenant: Tenant | null | undefined, payments: Payme
         };
     }
 
-    const nextPaymentDate = tenant.next_payment_date ? parseISO(tenant.next_payment_date) : new Date();
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    const hasActiveRental = Boolean(tenant.bike_id) && !tenant.is_archived;
+    const nextPaymentDate = hasActiveRental && tenant.next_payment_date ? parseISO(tenant.next_payment_date) : null;
+    const todayKey = format(typeof referenceDate === 'string' ? parseISO(referenceDate) : referenceDate, 'yyyy-MM-dd');
 
-    // Use a one-off expected amount when present, otherwise use the tenant's recurring weekly payment.
-    const expectedAmount = tenant.next_payment_amount != null
-        ? Number(tenant.next_payment_amount)
-        : getTenantWeeklyPayment(tenant);
-
-    // Sort payments by date descending
-    const paymentLedger = buildPaymentLedger(tenant, payments);
+    const paymentLedger = buildPaymentLedger(tenant, payments, referenceDate);
+    const expectedAmount = paymentLedger.entries.find(entry => entry.isCurrentExpected)?.amount || 0;
     const totalDebt = paymentLedger.outstandingCharges.reduce((sum, charge) => sum + charge.remaining, 0);
     const overdueAmount = paymentLedger.outstandingCharges
         .filter(charge => charge.dateKey < todayKey)

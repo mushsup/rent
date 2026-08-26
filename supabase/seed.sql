@@ -1,0 +1,1 @@
+-- Keep the baseline database empty. Test fixtures belong in isolated E2E setup.

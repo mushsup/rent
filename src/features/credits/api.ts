@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import type { Credit, CreditTransaction } from '../../types';
+import { normalizeCreditTransactionType, normalizeCreditType, type Credit, type CreditTransaction } from '../../types';
 
 export async function fetchCredits(): Promise<{ credits: Credit[]; transactions: CreditTransaction[] }> {
     const [{ data: credits, error: creditsError }, { data: transactions, error: transactionsError }] = await Promise.all([
@@ -11,17 +11,30 @@ export async function fetchCredits(): Promise<{ credits: Credit[]; transactions:
     if (transactionsError) throw transactionsError;
 
     return {
-        credits: (credits || []) as Credit[],
-        transactions: (transactions || []) as CreditTransaction[]
+        credits: (credits || []).map((credit) => ({
+            ...credit,
+            type: normalizeCreditType(credit.type),
+        })),
+        transactions: (transactions || []).map((transaction) => ({
+            ...transaction,
+            type: normalizeCreditTransactionType(transaction.type),
+        }))
     };
 }
 
 export type CreditInput = Omit<Credit, 'id'>;
 
 export async function saveCredit(id: string | undefined, input: CreditInput): Promise<void> {
+    const payload = {
+        ...input,
+        amount: Number(input.amount),
+        interest_rate: Number(input.interest_rate || 0),
+        payment_day: Number(input.payment_day || 1),
+        payment_amount: Number(input.payment_amount || 0),
+    };
     const request = id
-        ? supabase.from('credits').update(input).eq('id', id)
-        : supabase.from('credits').insert([input]);
+        ? supabase.from('credits').update(payload).eq('id', id)
+        : supabase.from('credits').insert([payload]);
     const { error } = await request;
     if (error) throw error;
 }
@@ -34,9 +47,10 @@ export async function deleteCredit(id: string): Promise<void> {
 export type CreditTransactionInput = Omit<CreditTransaction, 'id'>;
 
 export async function saveCreditTransaction(id: string | undefined, input: CreditTransactionInput): Promise<void> {
+    const payload = { ...input, amount: Number(input.amount) };
     const request = id
-        ? supabase.from('credit_transactions').update(input).eq('id', id)
-        : supabase.from('credit_transactions').insert([input]);
+        ? supabase.from('credit_transactions').update(payload).eq('id', id)
+        : supabase.from('credit_transactions').insert([payload]);
     const { error } = await request;
     if (error) throw error;
 }

@@ -2,7 +2,7 @@
 
 ## Project context
 
-This repository is a React 18 single-page application built with Vite 5. It uses TypeScript/TSX, React Router 7 with `HashRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and feature-level API modules. The deploy base path is `/rent/`.
+This repository is a React 18 single-page application built with Vite 8. It uses TypeScript/TSX, React Router 7 with `HashRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and feature-level API modules. The deploy base path is `/rent/`.
 
 ## Working agreements
 
@@ -34,7 +34,7 @@ This repository is a React 18 single-page application built with Vite 5. It uses
 
 - Use the public Supabase URL and anon/publishable key only in the browser client.
 - Check and handle `{ data, error }` for every Supabase read/write. Mutations that update related rows (for example tenant assignment and bike status) should surface partial-failure risk rather than reporting success blindly.
-- Add schema changes as a new ordered migration under `src/lib/migrations/`; never rewrite an already-applied migration.
+- Add schema changes as a new timestamped migration under `supabase/migrations/`; never rewrite an already-applied migration.
 - Keep `supabase_setup.sql` synchronized or clearly marked when the schema evolves. The current app requires `tenants`, `bikes`, `payments`, `credits`, and `credit_transactions`, plus fields added by the migrations.
 - Review Row Level Security policies whenever a table or query changes. Public tenant links are intentional, but public access must be limited to the minimum tenant/payment data required by `TenantPublic`.
 - Prefer database constraints for uniqueness, valid statuses, foreign keys, and non-negative financial values. Do not rely only on form validation.

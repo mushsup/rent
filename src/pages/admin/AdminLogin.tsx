@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bike, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { signIn } from '../../features/auth/api';
 
 export default function AdminLogin() {
@@ -14,7 +14,7 @@ export default function AdminLogin() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
+    const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setLoading(true);
         setError('');
@@ -32,7 +32,6 @@ export default function AdminLogin() {
         <div className="min-h-screen flex items-center justify-center bg-slate-900 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
                 <div className="text-center">
-                    <Bike className="mx-auto h-12 w-12 text-lime-400" />
                     <h2 className="mt-6 text-3xl font-extrabold text-white">Вход</h2>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleLogin}>
@@ -81,7 +80,7 @@ export default function AdminLogin() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 focus:ring-offset-slate-900 transition-colors disabled:opacity-50"
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-semibold rounded-md text-slate-950 bg-lime-600 hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 focus:ring-offset-slate-900 transition-colors disabled:opacity-50"
                         >
                             {loading ? 'Вход...' : 'Войти'}
                         </button>

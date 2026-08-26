@@ -1,5 +1,7 @@
 import { addDays, format, getDay, parseISO } from 'date-fns';
 
+type DateInput = string | Date | number;
+
 export const DEFAULT_PAYMENT_DAY = 1;
 
 export const PAYMENT_DAYS = [
@@ -12,7 +14,7 @@ export const PAYMENT_DAYS = [
     { value: 7, label: 'Воскресенье' }
 ];
 
-export const PAYMENT_DAY_ABBREVIATIONS = {
+export const PAYMENT_DAY_ABBREVIATIONS: Record<number, string> = {
     1: 'ПН',
     2: 'ВТ',
     3: 'СР',
@@ -22,7 +24,7 @@ export const PAYMENT_DAY_ABBREVIATIONS = {
     7: 'ВС'
 };
 
-function toDate(value) {
+function toDate(value: DateInput): Date {
     return typeof value === 'string' ? parseISO(value) : new Date(value);
 }
 
@@ -31,7 +33,7 @@ function toDate(value) {
  * @param {Date|string} value Date or yyyy-MM-dd value.
  * @returns {number} Weekday from 1 (Monday) through 7 (Sunday).
  */
-export function getPaymentDay(value) {
+export function getPaymentDay(value: DateInput): number {
     const sundayBasedDay = getDay(toDate(value));
     return sundayBasedDay === 0 ? 7 : sundayBasedDay;
 }
@@ -41,7 +43,7 @@ export function getPaymentDay(value) {
  * @param {Date|string} value Date or yyyy-MM-dd value.
  * @returns {string} Weekday abbreviation such as ПН, ПТ, or СБ.
  */
-export function getPaymentDayAbbreviation(value) {
+export function getPaymentDayAbbreviation(value: DateInput): string {
     return PAYMENT_DAY_ABBREVIATIONS[getPaymentDay(value)];
 }
 
@@ -51,7 +53,7 @@ export function getPaymentDayAbbreviation(value) {
  * @param {number} paymentDay ISO weekday from 1 (Monday) through 7 (Sunday).
  * @returns {string} Next scheduled date in yyyy-MM-dd format.
  */
-export function getNextPaymentDate(value, paymentDay = DEFAULT_PAYMENT_DAY) {
+export function getNextPaymentDate(value: DateInput, paymentDay = DEFAULT_PAYMENT_DAY): string {
     const date = toDate(value);
     const currentDay = getPaymentDay(date);
     const daysUntilPayment = ((paymentDay - currentDay + 7) % 7) || 7;
@@ -64,7 +66,7 @@ export function getNextPaymentDate(value, paymentDay = DEFAULT_PAYMENT_DAY) {
  * @param {number} paymentDay ISO weekday from 1 (Monday) through 7 (Sunday).
  * @returns {string} Scheduled date in yyyy-MM-dd format.
  */
-export function getScheduledPaymentDate(value, paymentDay = DEFAULT_PAYMENT_DAY) {
+export function getScheduledPaymentDate(value: DateInput, paymentDay = DEFAULT_PAYMENT_DAY): string {
     const date = toDate(value);
     const currentDay = getPaymentDay(date);
     const daysUntilPayment = (paymentDay - currentDay + 7) % 7;

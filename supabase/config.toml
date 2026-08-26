@@ -70,6 +70,9 @@ enabled = true
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
 
+[functions.google-tasks-sync]
+verify_jwt = false
+
 [db.network_restrictions]
 # Enable management of network restrictions.
 enabled = false

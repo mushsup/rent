@@ -1,7 +1,8 @@
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LogOut, Bike, Sun, Moon } from 'lucide-react';
+import { LogOut, Sun, Moon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 
 export default function Layout() {
     const location = useLocation();
@@ -9,23 +10,33 @@ export default function Layout() {
         document.title = "Панель управления — E-Bike Admin";
     }, []);
 
-    const [session, setSession] = useState(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setLoading(false);
-        });
+        let active = true;
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                if (active) setSession(session);
+            })
+            .catch(() => {
+                if (active) setSession(null);
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
 
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
+            if (active) setSession(session);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            active = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const [isDark, setIsDark] = useState(() => {
@@ -62,11 +73,7 @@ export default function Layout() {
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col font-sans text-slate-950 dark:text-slate-100">
             <header className="sticky top-0 z-40 h-14 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
                 <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex flex-row justify-between items-center gap-2">
-                    <div className="flex items-center space-x-2 sm:space-x-6">
-                        <div className="flex items-center text-lime-600 dark:text-lime-400 mr-3">
-                            <Bike className="w-7 h-7 flex-shrink-0" />
-                            <h1 className="ml-2 text-lg font-bold text-slate-900 dark:text-white hidden lg:block">E-Bike</h1>
-                        </div>
+                    <div className="flex items-center">
                         <nav className="flex space-x-1">
                             <button
                                 onClick={() => navigate('/admin')}
@@ -85,6 +92,12 @@ export default function Layout() {
                                 className={`${location.pathname === '/admin/payments' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 h-8 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
                             >
                                 Платежи
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/tasks')}
+                                className={`${location.pathname === '/admin/tasks' ? 'bg-lime-300 text-slate-950 shadow-sm dark:bg-lime-300' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'} px-2 sm:px-3 h-8 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap`}
+                            >
+                                Задачи
                             </button>
                         </nav>
                     </div>

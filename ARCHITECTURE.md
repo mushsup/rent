@@ -6,7 +6,9 @@ The project is a React/Vite single-page application deployed as static assets. `
 
 Supabase provides Auth and PostgreSQL. The browser uses only the publishable/anon key. Database permissions and authenticated mutations are enforced by RLS and SQL functions; service-role keys never belong in frontend code.
 
-The Supabase CLI configuration under `supabase/` manages the isolated beta database. The beta project reference is fixed in package scripts; future remote schema changes use migration files rather than manual SQL Editor changes.
+The Supabase CLI configuration and timestamped migrations under `supabase/` manage the isolated beta database. The beta project reference is fixed in package scripts; future remote schema changes use migration files rather than manual SQL Editor changes. `src/database.types.ts` is generated from that schema and types the browser client.
+
+Operational RLS policies call `is_admin()`, backed by the `admin_users` allowlist. Existing operators were retained when this policy was introduced; newly created Auth users have no table access until explicitly added. Anonymous clients cannot select operational tables and can only call the limited public tenant RPC.
 
 ## Financial model
 
@@ -25,4 +27,14 @@ The dashboard starts with action-oriented counts for overdue, due-today, upcomin
 
 ## Performance and deployment
 
-Static assets are deployed to Cloudflare Pages. The service worker caches same-origin frontend assets only; Supabase responses remain network-backed. Tenant reads and mutations are kept in `src/features/tenants/api.ts`, and the dashboard loads the heavy revenue chart lazily.
+Static assets are deployed to Cloudflare Pages. The service worker caches same-origin frontend assets only; Supabase responses remain network-backed. Tenant reads and mutations are kept in `src/features/tenants/api.ts`; route pages own data orchestration, while large forms are isolated in focused components such as `TenantCreateModal`, `TenantLedgerModalForm`, `BikeModal`, and `TenantBikeSelector`. The dashboard loads the heavy revenue chart lazily.
+
+Route chunks are checked after every production build: the shared entry is limited to 450 KiB uncompressed, lazy JavaScript chunks to 60 KiB, and CSS to 90 KiB. GitHub Actions runs lint, transitional-strict typechecking, unit tests, the production build, bundle budgets, and desktop/mobile Playwright tests.
+
+## TypeScript guarantees
+
+TypeScript strict mode is enabled across the application, including strict nullability, explicit parameter types, and `unknown` catch variables. Database RPC arguments are represented in the generated schema types, while pure financial calculations are kept independent from the browser and covered by unit tests.
+
+## Dependency audit
+
+Production audit currently reports the React Router RSC/server-action advisory `GHSA-qwww-vcr4-c8h2`. This application is a client-only `HashRouter` SPA and does not enable React Server Components, framework mode, actions, loaders, or server rendering, so the vulnerable execution path is not present. The available npm remediation is a downgrade to 7.11, which reintroduces several older router advisories; remain on the current patched 7.x release and reassess when an upstream version outside the advisory range is published.

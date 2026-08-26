@@ -42,7 +42,9 @@ In Supabase, open **Authentication → URL Configuration**:
 
 ## Database migrations
 
-Apply every SQL migration in `src/lib/migrations/` to the production Supabase project in filename order. Do not edit migrations that have already been applied; add a new migration for later changes.
+Test migrations against local Supabase with `npm run db:reset`, then link the intended staging project and run `supabase db push`. Regenerate types with `npm run db:types` and run the full quality suite before applying the same immutable migrations to production. Never use the legacy `supabase_setup.sql` for a new environment.
+
+After creating a new Auth operator, insert that user's UUID into `public.admin_users` using a privileged server-side/admin workflow. An Auth account without this allowlist membership intentionally has no operational table access.
 
 ## Verify after deployment
 

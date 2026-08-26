@@ -1,26 +1,33 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, ExternalLink, X } from 'lucide-react';
-import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
-import { DEFAULT_PAYMENT_DAY, PAYMENT_DAYS, getPaymentDay, getScheduledPaymentDate } from '../../utils/paymentSchedule';
-import { format, startOfWeek, startOfMonth, startOfYear, parseISO, isAfter, subMonths, subYears, subWeeks, addDays } from 'date-fns';
-import { formatRussianDate } from '../../utils/russianDate';
+import { Plus, Search, ExternalLink } from 'lucide-react';
+import { format } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Bike, Tenant } from '../../types';
-import { createTenant, fetchBikes, fetchDashboardTenants } from '../../features/tenants/api';
+import { fetchBikes, fetchDashboardTenants } from '../../features/tenants/api';
+import { queryKeys } from '../../shared/lib/queryKeys';
+import { TenantCreateModal } from './TenantCreateModal';
+import { Dialog } from '../../shared/ui';
+import {
+    buildRevenueChartData,
+    buildTenantSummaries,
+    filterDashboardTenants,
+    getDashboardStats,
+    type ChartPeriod,
+    type TenantFilter
+} from './dashboardSelectors';
 
 const RevenueChart = lazy(() => import('./RevenueChart'));
-
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
-    const [chartPeriod, setChartPeriod] = useState('month'); // day, week, month, year
+    const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('month');
     const [statsTab, setStatsTab] = useState('percent'); // percent, amount
 
     // Archive visibility state
     const [showArchived, setShowArchived] = useState(false);
-    const [tenantFilter, setTenantFilter] = useState('all');
+    const [tenantFilter, setTenantFilter] = useState<TenantFilter>('all');
     const [chartReady, setChartReady] = useState(false);
 
     useEffect(() => {
@@ -37,133 +44,41 @@ export default function AdminDashboard() {
     const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
 
     const { data: bikes = [], isError: bikesError } = useQuery<Bike[]>({
-        queryKey: ['bikes'],
+        queryKey: queryKeys.bikes.all,
         queryFn: fetchBikes
     });
 
     const { data: tenants = [], isLoading: loading, isError: tenantsError, error: tenantsQueryError } = useQuery<Tenant[]>({
-        queryKey: ['tenants', 'dashboard', showArchived],
+        queryKey: queryKeys.tenants.dashboard(showArchived),
         queryFn: () => fetchDashboardTenants(showArchived)
     });
 
-    const tenantSummaries = useMemo(() => tenants.map(tenant => ({
-        ...tenant,
-        debtSummary: calculateDebt(tenant, tenant.payments)
-    })), [tenants]);
+    const referenceDate = useMemo(() => new Date(), []);
+    const tenantSummaries = useMemo(() => buildTenantSummaries(tenants, referenceDate), [tenants, referenceDate]);
+    const stats = useMemo(() => getDashboardStats(tenantSummaries, bikes, referenceDate), [tenantSummaries, bikes, referenceDate]);
+    const chartData = useMemo(() => buildRevenueChartData(tenants, chartPeriod, referenceDate), [tenants, chartPeriod, referenceDate]);
+    const filteredTenants = useMemo(() => filterDashboardTenants(tenantSummaries, {
+        search,
+        showArchived,
+        tenantFilter,
+        referenceDate
+    }), [tenantSummaries, search, showArchived, tenantFilter, referenceDate]);
 
-    const activeWeeklyRevenue = tenantSummaries.reduce((sum, t) => sum + (t.is_archived ? 0 : getTenantWeeklyPayment(t)), 0);
-    const activeMonthlyRevenue = Math.round(activeWeeklyRevenue * 4.33);
+    const {
+        activeMonthlyRevenue,
+        totalBikesCount,
+        rentedBikesCount,
+        maintBikesCount,
+        availBikesCount,
+        utilizationRate,
+        overdueCount,
+        dueTodayCount,
+        upcomingCount,
+        totalOutstandingDebt
+    } = stats;
 
-    const totalBikesCount = bikes.length;
-    const rentedBikesCount = bikes.filter(b => b.status === 'in_rent').length;
-    const maintBikesCount = bikes.filter(b => b.status === 'maintenance').length;
-    const availBikesCount = bikes.filter(b => b.status === 'available').length;
-    const utilizationBase = Math.max(totalBikesCount - maintBikesCount, 1);
-    const utilizationRate = rentedBikesCount / utilizationBase;
-
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
-    const nextSevenDaysKey = format(addDays(new Date(), 7), 'yyyy-MM-dd');
-    const activeTenants = tenantSummaries.filter(tenant => !tenant.is_archived);
-    const tenantDebt = activeTenants.map(tenant => ({
-        tenant,
-        debt: tenant.debtSummary
-    }));
-    const overdueCount = tenantDebt.filter(({ debt }) => debt.isOverdue).length;
-    const dueTodayCount = tenantDebt.filter(({ debt }) => debt.hasDueToday).length;
-    const upcomingCount = tenantDebt.filter(({ tenant, debt }) => (
-        tenant.bike_id
-        && Number(tenant.weekly_payment) > 0
-        && debt.nextPaymentDate
-        && format(debt.nextPaymentDate, 'yyyy-MM-dd') >= todayKey
-        && format(debt.nextPaymentDate, 'yyyy-MM-dd') <= nextSevenDaysKey
-    )).length;
-    const totalOutstandingDebt = tenantDebt.reduce((sum, { debt }) => sum + debt.totalDebt, 0);
-
-    const processChartData = useCallback(() => {
-        let grouped = {};
-        const now = new Date();
-        let startDate;
-
-        switch (chartPeriod) {
-            case 'week': startDate = subWeeks(now, 12); break;
-            case 'month': startDate = subMonths(now, 12); break;
-            case 'year': startDate = subYears(now, 5); break;
-            default: startDate = subMonths(now, 12);
-        }
-
-        const allPayments = tenants.flatMap(t => t.payments || []);
-
-        allPayments.forEach(p => {
-            const pd = parseISO(p.payment_date);
-            if (isAfter(pd, startDate)) {
-                let key;
-                if (chartPeriod === 'week') key = format(startOfWeek(pd, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                else if (chartPeriod === 'month') key = format(startOfMonth(pd), 'yyyy-MM-dd');
-                else if (chartPeriod === 'year') key = format(startOfYear(pd), 'yyyy-MM-dd');
-
-                grouped[key] = (grouped[key] || 0) + (Number(p.amount) || 0);
-            }
-        });
-
-        return Object.keys(grouped).sort().filter(key => grouped[key] > 0).map(key => {
-            let label = key;
-            let fullLabel = key;
-            const d = parseISO(key);
-
-            if (chartPeriod === 'week') {
-                const monthLabel = formatRussianDate(d, 'LLL');
-                label = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
-                const endOfWeek = addDays(d, 6);
-                fullLabel = `${formatRussianDate(d, 'd MMM')} - ${formatRussianDate(endOfWeek, 'd MMM')}`;
-            } else if (chartPeriod === 'month') {
-                label = formatRussianDate(d, 'MMM yyyy');
-                fullLabel = label;
-            } else if (chartPeriod === 'year') {
-                label = format(d, 'yyyy');
-                fullLabel = label;
-            }
-
-            return { date: key, label, fullLabel, amount: Math.round(grouped[key]) };
-        });
-    }, [tenants, chartPeriod]);
-
-    const chartData = useMemo(() => tenants.length > 0 ? processChartData() : [], [tenants.length, processChartData]);
-
-    const filteredTenants = tenantSummaries.filter(t => {
-        // filter by search
-        const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
-            (t.bikes?.model || '').toLowerCase().includes(search.toLowerCase());
-        if (!matchesSearch) return false;
-
-        // filter by archived
-        if (showArchived ? !t.is_archived : t.is_archived) return false;
-
-        const nextDateKey = t.debtSummary.nextPaymentDate
-            ? format(t.debtSummary.nextPaymentDate, 'yyyy-MM-dd')
-            : null;
-        if (tenantFilter === 'overdue' && !t.debtSummary.isOverdue) return false;
-        if (tenantFilter === 'today' && !t.debtSummary.hasDueToday) return false;
-        if (tenantFilter === 'upcoming' && !(
-            t.bike_id
-            && Number(t.weekly_payment) > 0
-            && nextDateKey
-            && nextDateKey >= todayKey
-            && nextDateKey <= nextSevenDaysKey
-        )) return false;
-        if (tenantFilter === 'debt' && t.debtSummary.totalDebt <= 0) return false;
-
-        return true;
-    }).sort((a, b) => {
-        // sort by nextPaymentDate closest first
-        const debtA = a.debtSummary;
-        const debtB = b.debtSummary;
-        const timeA = debtA.oldestUnpaidDate?.getTime() ?? debtA.nextPaymentDate?.getTime() ?? Infinity;
-        const timeB = debtB.oldestUnpaidDate?.getTime() ?? debtB.nextPaymentDate?.getTime() ?? Infinity;
-        return timeA - timeB;
-    });
-
-    const handleRowClick = (tenant) => {
-        navigate(`/admin/tenant/${tenant.id}`);
+    const handleRowClick = (tenant: Tenant) => {
+        if (tenant.id) navigate(`/admin/tenant/${tenant.id}`);
     };
 
     return (
@@ -179,11 +94,11 @@ export default function AdminDashboard() {
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-5 shadow-sm lg:col-span-2 flex flex-col h-full min-h-[240px]">
                     <div className="flex justify-end items-center mb-4">
                         <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
-                            {['week', 'month', 'year'].map((period) => (
+                            {(['week', 'month', 'year'] as const).map((period) => (
                                 <button
                                     key={period}
                                     onClick={() => setChartPeriod(period)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
+                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartPeriod === period ? 'bg-lime-600 text-slate-950 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                                 >
                                     {period === 'week' ? 'Нед' : period === 'month' ? 'Мес' : 'Год'}
                                 </button>
@@ -203,13 +118,13 @@ export default function AdminDashboard() {
                     <div className="absolute top-4 right-4 z-10 flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
                         <button
                             onClick={() => setStatsTab('percent')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'percent' ? 'bg-lime-600 text-slate-950 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                         >
                             %
                         </button>
                         <button
                             onClick={() => setStatsTab('amount')}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-lime-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${statsTab === 'amount' ? 'bg-lime-600 text-slate-950 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800'}`}
                         >
                             zł
                         </button>
@@ -222,12 +137,12 @@ export default function AdminDashboard() {
                                 {statsTab === 'percent' ? (
                                     <>
                                         <span>{Math.round(utilizationRate * 100)}</span>
-                                        <span className="text-2xl sm:text-3xl text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">/ 100%</span>
+                                        <span className="text-2xl sm:text-3xl text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">/ 100%</span>
                                     </>
                                 ) : (
                                     <>
                                         <span>{activeMonthlyRevenue.toLocaleString('ru-RU')}</span>
-                                        <span className="text-2xl sm:text-3xl text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">zł/мес</span>
+                                        <span className="text-2xl sm:text-3xl text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">zł/мес</span>
                                     </>
                                 )}
                             </div>
@@ -260,7 +175,7 @@ export default function AdminDashboard() {
                     {/* Bottom Section: Numbers + Progress Bar */}
                     <div className="absolute bottom-0 left-0 w-full flex flex-col">
                         {/* Numbers */}
-                        <div className="flex w-full mb-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 px-0.5">
+                        <div className="flex w-full mb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 px-0.5">
                             {rentedBikesCount > 0 && (
                                 <div style={{ width: `${(rentedBikesCount / totalBikesCount) * 100}%` }} className="flex justify-center transition-all">
                                     {rentedBikesCount}
@@ -297,7 +212,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-row gap-3 items-stretch">
                     <div className="relative flex-1 max-w-lg">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                            <Search className="h-5 w-5 text-slate-500 dark:text-slate-400" />
                         </div>
                         <input
                             type="text"
@@ -308,25 +223,30 @@ export default function AdminDashboard() {
                         />
                     </div>
 
-                    <div className="relative flex-none">
+                    <div className="relative flex-none rounded-lg border border-slate-800 bg-slate-950 p-1 shadow-sm" role="group" aria-label="Статус арендаторов">
                         <button
                             type="button"
-                            role="switch"
-                            aria-checked={showArchived}
-                            onClick={() => setShowArchived((current) => !current)}
-                            aria-label="Показывать архивных"
-                            className={`flex items-center justify-center gap-2 h-full px-3 sm:px-4 py-2 border rounded-md text-sm font-medium transition-colors ${showArchived ? 'bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-500 text-lime-700 dark:text-lime-400' : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-transparent hover:border-slate-400 dark:hover:border-slate-500'}`}
+                            aria-pressed={!showArchived}
+                            onClick={() => setShowArchived(false)}
+                            className={`h-full rounded-md px-3 py-1.5 text-xs font-semibold transition-all sm:px-4 sm:text-sm ${!showArchived ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'}`}
                         >
-                            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${showArchived ? 'bg-lime-600' : 'bg-slate-300 dark:bg-slate-600'}`} aria-hidden="true">
-                                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${showArchived ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                            </span>
-                            <span>Архивные</span>
+                            Активные
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={showArchived}
+                            onClick={() => setShowArchived(true)}
+                            aria-label="Показывать архивных"
+                            className={`h-full rounded-md px-3 py-1.5 text-xs font-semibold transition-all sm:px-4 sm:text-sm ${showArchived ? 'bg-slate-800 text-lime-400 shadow' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'}`}
+                        >
+                            Архив
                         </button>
                     </div>
 
                     <button
+                        aria-label="Добавить арендатора"
                         onClick={() => setIsTenantModalOpen(true)}
-                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-lime-600 px-3 sm:px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-lime-700 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                        className="flex-none inline-flex items-center justify-center rounded-md border border-transparent bg-lime-600 px-3 sm:px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm hover:bg-lime-700 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                     >
                         <Plus className="h-5 w-5 sm:mr-1.5" />
                         <span className="hidden sm:inline">Добавить</span>
@@ -335,12 +255,12 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-                {[
+                {([
                     { id: 'overdue', label: 'Просрочено', value: overdueCount, color: 'text-red-500', suffix: '' },
                     { id: 'today', label: 'Платежи сегодня', value: dueTodayCount, color: 'text-orange-500', suffix: '' },
-                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-lime-500', suffix: '' },
+                    { id: 'upcoming', label: 'Ближайшие 7 дней', value: upcomingCount, color: 'text-lime-800 dark:text-lime-400', suffix: '' },
                     { id: 'debt', label: 'Долги всего', value: totalOutstandingDebt.toLocaleString('ru-RU'), color: 'text-red-500', suffix: ' zł' }
-                ].map(card => (
+                ] as const).map(card => (
                     <button
                         key={card.id}
                         type="button"
@@ -373,7 +293,7 @@ export default function AdminDashboard() {
 
                             <div className="flex flex-col items-end justify-center py-1">
                                 <div className="flex items-center gap-3">
-                                    <div className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-tight">
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-tight">
                                         {nextPaymentDate ? format(nextPaymentDate, 'dd.MM') : '—'}
                                     </div>
                                     {totalDebt > 0 && (
@@ -388,7 +308,7 @@ export default function AdminDashboard() {
                     );
                 })}
                 {!loading && filteredTenants.length === 0 && (
-                    <div className="py-8 text-center text-slate-400 dark:text-slate-500">Нет данных для отображения.</div>
+                    <div className="py-8 text-center text-slate-500 dark:text-slate-400">Нет данных для отображения.</div>
                 )}
             </div>
 
@@ -416,12 +336,12 @@ export default function AdminDashboard() {
                                                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                     <div className="flex items-center">
                                                         <div className="ml-0">
-                                                            <div className={`font-medium flex items-center gap-2 ${tenant.is_archived ? 'text-slate-400 dark:text-slate-500' : 'text-black dark:text-white'}`}>
+                                                            <div className={`font-medium flex items-center gap-2 ${tenant.is_archived ? 'text-slate-500 dark:text-slate-400' : 'text-black dark:text-white'}`}>
                                                                 {tenant.name}
                                                                 {tenant.is_archived && <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Архив</span>}
                                                             </div>
                                                             <div onClick={e => e.stopPropagation()}>
-                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-slate-400 dark:text-slate-500 hover:text-lime-400 flex items-center mt-0.5">
+                                                                <Link to={`/${tenant.slug}`} target="_blank" className="text-xs text-slate-500 hover:text-lime-800 dark:text-slate-400 dark:hover:text-lime-400 flex items-center mt-0.5">
                                                                     /{tenant.slug} <ExternalLink className="w-3 h-3 ml-1" />
                                                                 </Link>
                                                             </div>
@@ -456,10 +376,10 @@ export default function AdminDashboard() {
                                         );
                                     })}
                                     {!loading && filteredTenants.length === 0 && (
-                                        <tr><td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500">Нет данных для отображения.</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-slate-500 dark:text-slate-400">Нет данных для отображения.</td></tr>
                                     )}
                                     {loading && (
-                                        <tr><td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500">Загрузка...</td></tr>
+                                        <tr><td colSpan={6} className="py-8 text-center text-slate-500 dark:text-slate-400">Загрузка...</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -468,145 +388,13 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {isTenantModalOpen && (
-                <div className="fixed inset-0 z-50">
-                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onClick={(e) => { e.stopPropagation(); setIsTenantModalOpen(false); }} />
-                    <div className="fixed inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative pointer-events-auto mt-8 max-h-[90vh] overflow-y-auto">
-                            <TenantModal
-                                bikes={bikes}
-                                onClose={() => setIsTenantModalOpen(false)}
-                                onSuccess={() => { setIsTenantModalOpen(false); queryClient.invalidateQueries({ queryKey: ['tenants'] }); queryClient.invalidateQueries({ queryKey: ['bikes'] }); }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function TenantModal({ onClose, onSuccess, bikes }) {
-    const [formData, setFormData] = useState({
-        name: '', slug: '', bike_id: '', weekly_payment: '', payment_day: DEFAULT_PAYMENT_DAY,
-        next_payment_date: getScheduledPaymentDate(new Date(), DEFAULT_PAYMENT_DAY), deposit: '', phone: '', telegram_username: ''
-    });
-    const [loading, setLoading] = useState(false);
-
-    const sortedBikes = bikes
-        .filter(b => b.status === 'available')
-        .sort((a, b) => a.model.localeCompare(b.model));
-
-    const handleBikeChange = (e) => setFormData(prev => ({ ...prev, bike_id: e.target.value }));
-
-    const handlePaymentDayChange = (e) => {
-        const paymentDay = Number(e.target.value);
-        setFormData(prev => ({
-            ...prev,
-            payment_day: paymentDay,
-            next_payment_date: getScheduledPaymentDate(prev.next_payment_date || new Date(), paymentDay)
-        }));
-    };
-
-    const handleFirstPaymentDateChange = (e) => {
-        const nextPaymentDate = e.target.value;
-        setFormData(prev => ({
-            ...prev,
-            next_payment_date: nextPaymentDate,
-            payment_day: nextPaymentDate ? getPaymentDay(nextPaymentDate) : prev.payment_day
-        }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        const rentAmount = Number(formData.weekly_payment) || 0;
-        const firstPaymentDate = formData.next_payment_date;
-
-        try {
-            await createTenant({ ...formData, weekly_payment: rentAmount, next_payment_date: firstPaymentDate });
-            onSuccess();
-        } catch (error) {
-            alert(error.message);
-        }
-        setLoading(false);
-    };
-
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium leading-6 text-slate-900 dark:text-white">Новый арендатор</h3>
-                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded-md">
-                    <X className="w-5 h-5" />
-                </button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Имя арендатора</label>
-                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Псевдоним ссылки</label>
-                        <div className="mt-1 flex rounded-md">
-                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 text-slate-500 dark:text-slate-400 sm:text-sm">/</span>
-                            <input type="text" required value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="ivan-123" />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Велосипед</label>
-                        <select
-                            value={formData.bike_id}
-                            onChange={handleBikeChange}
-                            className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm"
-                        >
-                            <option value="">Нет велосипеда</option>
-                            {sortedBikes.map(b => (
-                                <option key={b.id} value={b.id}>
-                                    {b.status === 'available' ? '🟢✅ ' : '🟠🔧 '}{b.model}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата первого платежа</label>
-                        <input type="date" required value={formData.next_payment_date} onChange={handleFirstPaymentDateChange} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" style={{ colorScheme: 'dark' }} />
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Это ожидаемое начисление, а не уже полученная оплата.</p>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">День еженедельного платежа</label>
-                        <select value={formData.payment_day} onChange={handlePaymentDayChange} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
-                            {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Телефон</label>
-                        <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Telegram</label>
-                        <input type="text" value={formData.telegram_username} onChange={e => setFormData({ ...formData, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Еженедельный платеж (zł)</label>
-                    <input type="number" min="0" required value={formData.weekly_payment} onChange={e => setFormData({ ...formData, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="150" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Депозит (zł)</label>
-                    <input type="number" required value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" placeholder="Стоимость залога" />
-                </div>
-
-
-                <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                    <button type="submit" disabled={loading} className="inline-flex w-full justify-center rounded-md border border-transparent bg-lime-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-slate-900 sm:col-start-2 sm:text-sm disabled:opacity-50">
-                        Создать
-                    </button>
-                    <button type="button" onClick={onClose} className="mt-3 inline-flex w-full justify-center rounded-md bg-slate-200 dark:bg-slate-700 px-4 py-2 text-base font-medium text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 sm:col-start-1 sm:mt-0 sm:text-sm transition-colors">
-                        Отмена
-                    </button>
-                </div>
-            </form>
+            <Dialog open={isTenantModalOpen} ariaLabel="Новый арендатор" onClose={() => setIsTenantModalOpen(false)}>
+                <TenantCreateModal
+                    bikes={bikes}
+                    onClose={() => setIsTenantModalOpen(false)}
+                    onSuccess={() => { setIsTenantModalOpen(false); queryClient.invalidateQueries({ queryKey: queryKeys.tenants.all }); queryClient.invalidateQueries({ queryKey: queryKeys.bikes.all }); }}
+                />
+            </Dialog>
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import type { Bike } from '../../types';
+import { normalizeBikeStatus, type Bike, type BikeStatus } from '../../types';
 
 export interface BikeTenant {
     id: string;
@@ -10,23 +10,33 @@ export interface BikeTenant {
 export interface BikeInput {
     model: string;
     type: string;
-    status: string;
+    status: BikeStatus;
 }
 
 export async function fetchInventory(): Promise<Bike[]> {
     const { data, error } = await supabase
         .from('bikes')
-        .select('id, model, type, status')
+        .select('id, model, type, status, voice_code')
         .order('model');
 
     if (error) throw error;
-    return (data || []) as Bike[];
+    return (data || []).map((bike) => ({
+        id: bike.id,
+        model: bike.model,
+        type: bike.type,
+        status: normalizeBikeStatus(bike.status),
+        voice_code: bike.voice_code,
+    }));
 }
 
 export async function fetchBikeTenants(): Promise<BikeTenant[]> {
     const { data, error } = await supabase.from('tenants').select('id, name, bike_id');
     if (error) throw error;
-    return (data || []) as BikeTenant[];
+    return (data || []).map((tenant) => ({
+        id: tenant.id,
+        name: tenant.name,
+        bike_id: tenant.bike_id,
+    }));
 }
 
 export async function saveBike(id: string | undefined, input: BikeInput): Promise<void> {
@@ -37,7 +47,7 @@ export async function saveBike(id: string | undefined, input: BikeInput): Promis
             p_type: input.type,
             p_status: input.status
         })
-        : await supabase.from('bikes').insert([input]);
+        : await supabase.from('bikes').insert([{ ...input, voice_code: '' }]);
 
     if (response.error) throw response.error;
 }

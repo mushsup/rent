@@ -1,31 +1,39 @@
-import { useState, useEffect } from 'react';
-import { calculateCreditDebt } from '../../utils/calculateCreditDebt';
-import { Plus, X, Landmark, Trash2, Edit2, ChevronLeft } from 'lucide-react';
+import { useState, type FormEvent, type MouseEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, Landmark, Trash2, Edit2, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import TrendChart from '../../components/TrendChart';
-import { format, addMonths } from 'date-fns';
-import { formatRussianDate } from '../../utils/russianDate';
 import { deleteCredit, deleteCreditTransaction, fetchCredits as loadCredits, saveCredit, saveCreditTransaction } from '../../features/credits/api';
 import { generateCreditSchedule } from '../../features/credits/schedule';
-import type { Credit, CreditTransaction } from '../../types';
+import type { Credit, CreditTransaction, CreditTransactionType } from '../../types';
+import { ConfirmDialog } from '../../shared/ui';
+import { queryKeys } from '../../shared/lib/queryKeys';
+import { getErrorMessage } from '../../shared/lib/errors';
+import { CreditModal, TransactionModal, type CreditFormData, type TransactionFormData } from './CreditModals';
+import { buildCreditDebtChartData, getCreditDebt, getTotalCreditDebt } from './creditSelectors';
 
 export default function AdminPayments() {
-    const [credits, setCredits] = useState<Credit[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { data, isLoading: loading, isError } = useQuery<{ credits: Credit[]; transactions: CreditTransaction[] }>({
+        queryKey: queryKeys.credits.all,
+        queryFn: loadCredits
+    });
+    const credits = data?.credits || [];
+    const creditTransactions = data?.transactions || [];
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCredit, setEditingCredit] = useState<Credit | null>(null);
     const [selectedCredit, setSelectedCredit] = useState<Credit | null>(null);
-    const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<CreditTransaction | null>(null);
-    const [transactionType, setTransactionType] = useState('payment'); // 'payment' or 'addition'
-    const [transactionData, setTransactionData] = useState({
+    const [pendingDelete, setPendingDelete] = useState<{ type: 'credit' | 'transaction'; id: string } | null>(null);
+    const [transactionType, setTransactionType] = useState<CreditTransactionType>('payment');
+    const [transactionData, setTransactionData] = useState<TransactionFormData>({
         amount: '',
         date: new Date().toISOString().split('T')[0]
     });
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<CreditFormData>({
         name: '',
         start_date: new Date().toISOString().split('T')[0],
         type: 'no_interest',
@@ -35,21 +43,7 @@ export default function AdminPayments() {
         payment_amount: ''
     });
 
-    useEffect(() => {
-        fetchCredits();
-    }, []);
-
-    const fetchCredits = async () => {
-        try {
-            const data = await loadCredits();
-            setCredits(data.credits);
-            setCreditTransactions(data.transactions);
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const refreshCredits = () => queryClient.invalidateQueries({ queryKey: queryKeys.credits.all });
 
     const openCreateModal = () => {
         setEditingCredit(null);
@@ -60,22 +54,22 @@ export default function AdminPayments() {
         setIsModalOpen(true);
     };
 
-    const openEditModal = (e, credit) => {
+    const openEditModal = (e: MouseEvent<HTMLButtonElement>, credit: Credit) => {
         e.stopPropagation();
         setEditingCredit(credit);
         setFormData({
             name: credit.name,
             start_date: credit.start_date,
             type: credit.type,
-            amount: credit.amount,
-            interest_rate: credit.interest_rate || '',
-            payment_day: credit.payment_day,
-            payment_amount: credit.payment_amount
+            amount: String(credit.amount),
+            interest_rate: credit.interest_rate == null ? '' : String(credit.interest_rate),
+            payment_day: String(credit.payment_day),
+            payment_amount: String(credit.payment_amount)
         });
         setIsModalOpen(true);
     };
 
-    const handleSaveCredit = async (e) => {
+    const handleSaveCredit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const payload = {
             name: formData.name,
@@ -91,27 +85,38 @@ export default function AdminPayments() {
             await saveCredit(editingCredit?.id, payload);
             toast.success(editingCredit ? 'Кредит обновлен' : 'Кредит успешно добавлен');
             setIsModalOpen(false);
-            fetchCredits();
+            refreshCredits();
         } catch (error) {
-            toast.error(`Ошибка сохранения: ${error.message}`);
+            toast.error(`Ошибка сохранения: ${getErrorMessage(error)}`);
         }
     };
 
-    const handleDelete = async (e, id) => {
+    const handleDelete = (e: MouseEvent<HTMLButtonElement>, id: string) => {
         e.stopPropagation();
-        if (!window.confirm('Точно удалить этот кредит?')) return;
+        setPendingDelete({ type: 'credit', id });
+    };
+
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
         try {
-            await deleteCredit(id);
-            toast.success('Кредит удален');
-            fetchCredits();
-            if (selectedCredit?.id === id) setSelectedCredit(null);
+            if (pendingDelete.type === 'credit') {
+                await deleteCredit(pendingDelete.id);
+                toast.success('Кредит удален');
+                if (selectedCredit?.id === pendingDelete.id) setSelectedCredit(null);
+            } else {
+                await deleteCreditTransaction(pendingDelete.id);
+                toast.success('Операция удалена');
+            }
+            refreshCredits();
+            setPendingDelete(null);
         } catch (error) {
-            toast.error(`Ошибка удаления: ${error.message}`);
+            toast.error(`Ошибка удаления: ${getErrorMessage(error)}`);
         }
     };
 
-    const handleAddTransaction = async (e) => {
+    const handleAddTransaction = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!selectedCredit) return;
         const payload = {
             credit_id: selectedCredit.id,
             type: transactionType,
@@ -125,60 +130,26 @@ export default function AdminPayments() {
             setIsTransactionModalOpen(false);
             setEditingTransaction(null);
             setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0] });
-            fetchCredits();
+            refreshCredits();
         } catch (error) {
-            toast.error(`Ошибка операции: ${error.message}`);
+            toast.error(`Ошибка операции: ${getErrorMessage(error)}`);
         }
     };
 
-    const handleDeleteTransaction = async (id) => {
-        if (!window.confirm('Удалить эту операцию?')) return;
-        try {
-            await deleteCreditTransaction(id);
-            toast.success('Операция удалена');
-            fetchCredits();
-        } catch (error) {
-            toast.error(`Ошибка удаления: ${error.message}`);
-        }
-    };
-
-    const processTotalDebtChartData = () => {
-        if (!credits || credits.length === 0) return [];
-
-        const earliestDateSrc = credits.reduce((min, c) => (c.start_date < min ? c.start_date : min), credits[0].start_date);
-        const startDate = new Date(earliestDateSrc);
-        const now = new Date();
-
-        let data = [];
-        let current = new Date(startDate);
-        current.setDate(1);
-
-        while (current <= now) {
-            const dStr = format(current, 'yyyy-MM-dd');
-            const label = formatRussianDate(current, 'MMM yyyy');
-            const val = credits.reduce((sum, c) => sum + calculateCreditDebt(c, current, creditTransactions.filter(tx => tx.credit_id === c.id)), 0);
-            data.push({ date: dStr, label, debtAmount: val });
-            current = addMonths(current, 1);
-        }
-
-        const endLast = data.length > 0 ? data[data.length - 1] : null;
-        if (!endLast || endLast.date.substring(0, 7) !== format(now, 'yyyy-MM')) {
-             data.push({
-                 date: format(now, 'yyyy-MM-dd'),
-                 label: formatRussianDate(now, 'MMM yyyy'),
-                 debtAmount: credits.reduce((sum, c) => sum + calculateCreditDebt(c, now, creditTransactions.filter(tx => tx.credit_id === c.id)), 0)
-             });
-        }
-        return data;
+    const handleDeleteTransaction = (id: string) => {
+        setPendingDelete({ type: 'transaction', id });
     };
 
     if (loading) return <div className="text-slate-900 dark:text-white text-center">Загрузка...</div>;
+    if (isError) return <div role="alert" className="text-center text-red-600 dark:text-red-400">Не удалось загрузить кредиты.</div>;
 
-    const totalDebt = credits.reduce((sum, c) => sum + calculateCreditDebt(c, new Date(), creditTransactions.filter(tx => tx.credit_id === c.id)), 0);
-    const totalGraphData = processTotalDebtChartData();
+    const referenceDate = new Date();
+    const totalDebt = getTotalCreditDebt(credits, creditTransactions, referenceDate);
+    const totalGraphData = buildCreditDebtChartData(credits, creditTransactions, referenceDate);
     const selectedSchedule = selectedCredit ? generateCreditSchedule(selectedCredit, creditTransactions) : [];
 
-    const openEditTransaction = (tx) => {
+    const openEditTransaction = (tx: CreditTransaction | undefined) => {
+        if (!tx) return;
         setEditingTransaction(tx);
         setTransactionType(tx.type);
         setTransactionData({
@@ -194,7 +165,7 @@ export default function AdminPayments() {
                 <>
                     <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm text-center relative flex flex-col p-6">
                         <div className="relative z-10">
-                            <div className="inline-flex w-14 h-14 rounded-full bg-lime-600 items-center justify-center mb-3 text-white shadow-sm">
+                            <div className="inline-flex w-14 h-14 rounded-full bg-lime-600 items-center justify-center mb-3 text-slate-950 shadow-sm">
                                 <Landmark className="w-7 h-7" />
                             </div>
                             <h2 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Общая сумма</h2>
@@ -217,7 +188,7 @@ export default function AdminPayments() {
 
                     <div className="flex justify-between items-center px-1">
                         <h1 className="text-2xl font-bold text-black dark:text-white">Кредиты</h1>
-                        <button onClick={openCreateModal} className="flex items-center px-4 py-2 bg-lime-600 hover:bg-lime-700 text-white rounded-lg shadow-sm transition-colors font-medium">
+                        <button onClick={openCreateModal} className="flex items-center px-4 py-2 bg-lime-600 hover:bg-lime-700 text-slate-950 rounded-lg shadow-sm transition-colors font-semibold">
                             <Plus className="w-5 h-5 mr-2" /> Добавить
                         </button>
                     </div>
@@ -228,12 +199,12 @@ export default function AdminPayments() {
                         ) : (
                             <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {credits.map((credit) => {
-                                    const currentDebt = calculateCreditDebt(credit, new Date(), creditTransactions.filter(tx => tx.credit_id === credit.id));
+                                    const currentDebt = getCreditDebt(credit, creditTransactions, referenceDate);
                                     return (
                                         <li key={credit.id} onClick={() => setSelectedCredit(credit)} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer group">
                                             <div className="mb-4 sm:mb-0">
                                                 <h3 className="text-lg font-bold text-black dark:text-white flex items-center gap-3">
-                                                    <div className="p-2 bg-lime-600 text-white rounded-full shadow-sm group-hover:bg-lime-700 transition-colors">
+                                                    <div className="p-2 bg-lime-600 text-slate-950 rounded-full shadow-sm group-hover:bg-lime-700 transition-colors">
                                                         <Landmark className="w-4 h-4" />
                                                     </div>
                                                     {credit.name}
@@ -320,7 +291,7 @@ export default function AdminPayments() {
                                                             <button onClick={() => openEditTransaction(creditTransactions.find(t => t.id === s.txId))} className="p-1 hover:text-lime-400 transition-colors">
                                                                 <Edit2 className="w-3.5 h-3.5" />
                                                             </button>
-                                                            <button onClick={() => handleDeleteTransaction(s.txId)} className="p-1 hover:text-red-500 transition-colors">
+                                                            <button onClick={() => s.txId && handleDeleteTransaction(s.txId)} className="p-1 hover:text-red-500 transition-colors">
                                                                 <Trash2 className="w-3.5 h-3.5" />
                                                             </button>
                                                         </div>
@@ -336,94 +307,9 @@ export default function AdminPayments() {
                 </div>
             )}
 
-            {/* Original Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800">
-                        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900/50">
-                            <h3 className="text-lg font-bold text-black dark:text-white">{editingCredit ? 'Редактировать кредит' : 'Новый кредит'}</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSaveCredit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Название</label>
-                                <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" placeholder="Например: Кредит на велосипеды" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Начальная сумма (zł)</label>
-                                    <input type="number" required min="0" step="0.01" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата получения</label>
-                                    <input type="date" required value={formData.start_date} onChange={e => setFormData({ ...formData, start_date: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Тип кредита</label>
-                                <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500">
-                                    <option value="no_interest">Без процентов</option>
-                                    <option value="interest">С процентами</option>
-                                </select>
-                            </div>
-                            {formData.type === 'interest' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Процент (годовых, %)</label>
-                                    <input type="number" required min="0" step="0.01" value={formData.interest_rate} onChange={e => setFormData({ ...formData, interest_rate: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" placeholder="Например: 10" />
-                                </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Сумма регулярного платежа (zł)</label>
-                                    <input type="number" required min="0" step="0.01" value={formData.payment_amount} onChange={e => setFormData({ ...formData, payment_amount: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">День месяца для оплаты</label>
-                                    <input type="number" required min="1" max="31" value={formData.payment_day} onChange={e => setFormData({ ...formData, payment_day: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" placeholder="1-31" />
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end gap-3 pt-2">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Отмена</button>
-                                <button type="submit" className="px-4 py-2 bg-lime-600 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white hover:bg-lime-700 transition">Сохранить</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Transaction Modal */}
-            {isTransactionModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-800">
-                        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900/50">
-                            <h3 className="text-lg font-bold text-black dark:text-white">
-                                {editingTransaction ? 'Редактировать операцию' : (transactionType === 'payment' ? 'Добавить платеж' : 'Добор кредита')}
-                            </h3>
-                            <button onClick={() => { setIsTransactionModalOpen(false); setEditingTransaction(null); }} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleAddTransaction} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Сумма (zł)</label>
-                                <input type="number" required min="0.01" step="0.0001" value={transactionData.amount} onChange={e => setTransactionData({ ...transactionData, amount: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Дата</label>
-                                <input type="date" required value={transactionData.date} onChange={e => setTransactionData({ ...transactionData, date: e.target.value })} className="mt-1 block w-full rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500" />
-                            </div>
-                            <div className="mt-6 flex justify-end gap-3 pt-2">
-                                <button type="button" onClick={() => { setIsTransactionModalOpen(false); setEditingTransaction(null); }} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Отмена</button>
-                                <button type="submit" className={`px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition ${transactionType === 'payment' ? 'bg-green-600 hover:bg-green-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
-                                    {editingTransaction ? 'Обновить' : (transactionType === 'payment' ? 'Оплатить' : 'Добавить')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {isModalOpen && <CreditModal credit={editingCredit} formData={formData} setFormData={setFormData} onClose={() => setIsModalOpen(false)} onSubmit={handleSaveCredit} />}
+            {isTransactionModalOpen && <TransactionModal transaction={editingTransaction} transactionType={transactionType} transactionData={transactionData} setTransactionData={setTransactionData} onClose={() => { setIsTransactionModalOpen(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} />}
+            <ConfirmDialog open={Boolean(pendingDelete)} title={pendingDelete?.type === 'credit' ? 'Удалить кредит?' : 'Удалить операцию?'} description={pendingDelete?.type === 'credit' ? 'Кредит и связанные операции будут удалены без возможности восстановления.' : 'Операция будет удалена из журнала.'} onCancel={() => setPendingDelete(null)} onConfirm={confirmDelete} />
         </div>
     );
 }

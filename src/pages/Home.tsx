@@ -1,4 +1,4 @@
-import { Bike, Send, ShieldCheck, Zap, Navigation } from 'lucide-react';
+import { Send, ShieldCheck, Zap, Navigation } from 'lucide-react';
 
 export default function Home() {
     return (
@@ -7,7 +7,6 @@ export default function Home() {
             <header className="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/50 animate-fade-in-up">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Bike className="w-6 h-6 text-lime-500 animate-pulse" />
                         <span className="text-xl font-bold tracking-tight">E-Bike Rent <span className="text-lime-500 relative inline-block"><span className="relative z-10">Krakow</span><span className="absolute inset-x-0 bottom-0 h-2 bg-lime-500/20 blur-sm"></span></span></span>
                     </div>
                 </div>
@@ -33,7 +32,7 @@ export default function Home() {
 
                         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up delay-200">
                             <a href="https://t.me/wlad_rent" target="_blank" rel="noopener noreferrer"
-                                className="relative group inline-flex items-center px-8 py-3 rounded-full bg-lime-600 text-white font-medium transition-all hover:scale-105 overflow-hidden">
+                                className="relative group inline-flex items-center px-8 py-3 rounded-full bg-lime-600 text-slate-950 font-semibold transition-all hover:scale-105 overflow-hidden">
                                 <span className="absolute inset-0 bg-gradient-to-r from-lime-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                                 <span className="relative flex items-center">
                                     <Send className="w-5 h-5 mr-2" />

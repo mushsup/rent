@@ -11,9 +11,12 @@ dist/
 .env
 .env.*
 !.env.example
+.google-tasks-sync-secret
 
 # Test and coverage output
 coverage/
+test-results/
+playwright-report/
 
 # Logs and runtime output
 *.log
@@ -34,3 +37,4 @@ Thumbs.db
 
 # Generated archives
 *.zip
+migration-backups/

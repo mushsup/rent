@@ -1,17 +1,22 @@
 import { addDays, isAfter, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
+import type { Credit, CreditTransaction } from '../types';
 
-export const calculateCreditDebt = (credit, targetDate = new Date(), transactions = []) => {
+export function calculateCreditDebt(
+    credit: Credit,
+    targetDate: Date = new Date(),
+    transactions: CreditTransaction[] = [],
+): number {
     const startDate = startOfDay(parseISO(credit.start_date));
     const target = startOfDay(new Date(targetDate));
     
     if (isBefore(target, startDate)) return 0;
 
-    let balance = parseFloat(credit.amount) || 0;
-    const interestRate = (parseFloat(credit.interest_rate) || 0) / 100;
+    let balance = Number(credit.amount) || 0;
+    const interestRate = (Number(credit.interest_rate) || 0) / 100;
     const sortedTransactions = [...transactions]
         .map(t => ({ ...t, date: startOfDay(parseISO(t.transaction_date)) }))
         .filter(t => !isBefore(t.date, startDate) && !isAfter(t.date, target))
-        .sort((a, b) => a.date - b.date);
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
 
     let currentDate = startDate;
     let transactionIndex = 0;
@@ -38,4 +43,4 @@ export const calculateCreditDebt = (credit, targetDate = new Date(), transaction
     }
 
     return Math.round((Math.max(0, balance) + Number.EPSILON) * 100) / 100;
-};
+}

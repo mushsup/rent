@@ -8,7 +8,9 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminTenantDetail = lazy(() => import('./pages/admin/AdminTenantDetail'));
 const AdminBikes = lazy(() => import('./pages/admin/AdminBikes'));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments'));
-const TenantPublic = lazy(() => import('./pages/TenantPublic'));
+const AdminTasks = lazy(() => import('./pages/admin/AdminTasks'));
+const AdminBikeDetail = lazy(() => import('./pages/admin/AdminBikeDetail'));
+const PaymentHistory = lazy(() => import('./pages/admin/PaymentHistory'));
 const Home = lazy(() => import('./pages/Home'));
 
 function App() {
@@ -27,16 +29,23 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/admin/login" element={<AdminLogin />} />
 
+          <Route path="/history/:slug/statement" element={<PaymentHistory variant="statement" publicMode />} />
+          <Route path="/history/:slug/weeks" element={<PaymentHistory variant="weeks" publicMode />} />
+
           {/* Защищенные роуты админки */}
           <Route path="/admin" element={<Layout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="bikes" element={<AdminBikes />} />
+            <Route path="bike/:id" element={<AdminBikeDetail />} />
             <Route path="payments" element={<AdminPayments />} />
+            <Route path="tasks" element={<AdminTasks />} />
             <Route path="tenant/:id" element={<AdminTenantDetail />} />
+            <Route path="tenant/:id/history/statement" element={<PaymentHistory variant="statement" />} />
+            <Route path="tenant/:id/history/weeks" element={<PaymentHistory variant="weeks" />} />
           </Route>
 
-          {/* Публичный роут арендатора */}
-          <Route path="/:slug" element={<TenantPublic />} />
+          {/* Публичный роут арендатора: основная страница теперь использует недельную историю */}
+          <Route path="/:slug" element={<PaymentHistory variant="weeks" publicMode />} />
         </Routes>
       </Suspense>
     </>

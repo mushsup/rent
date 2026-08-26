@@ -20,8 +20,8 @@
     --color-slate-100: #f4f4f5;
     --color-slate-200: #e0e1e2;
     --color-slate-300: #d1d3d5;
-    --color-slate-400: #a1a3a5;
-    --color-slate-500: #717376;
+    --color-slate-400: #73767a;
+    --color-slate-500: #5f6266;
     --color-slate-600: #525457;
     --color-slate-700: #3f4144;
     --color-slate-800: #27292b;
@@ -36,9 +36,9 @@
     --color-lime-500: #c8ff00;
     --color-lime-600: #c8ff00;
     --color-lime-700: #a6d600;
-    --color-lime-800: #7fa300;
+    --color-lime-800: #536b00;
     --color-lime-900: #c8ff00;
-    --color-lime-950: #7fa300;
+    --color-lime-950: #3d4f00;
   }
 
   .dark {
@@ -49,8 +49,8 @@
     --color-slate-100: #fcfcfe;
     --color-slate-200: #d4d4d5;
     --color-slate-300: #b0b0b1;
-    --color-slate-400: #8d8e90;
-    --color-slate-500: #696a6c;
+    --color-slate-400: #aeb0b3;
+    --color-slate-500: #939598;
     --color-slate-600: #505153;
     --color-slate-700: #353739;
     --color-slate-800: #252628;
@@ -65,9 +65,9 @@
     --color-lime-500: #c8ff00;
     --color-lime-600: #c8ff00;
     --color-lime-700: #a6d600;
-    --color-lime-800: #7fa300;
+    --color-lime-800: #536b00;
     --color-lime-900: #c8ff00;
-    --color-lime-950: #7fa300;
+    --color-lime-950: #3d4f00;
   }
 
   body {

@@ -61,7 +61,7 @@ export default function TrendChart({ data, accent = 'var(--or-primary)', valueFo
                         <title>{point.detail || `${point.label}: ${valueFormatter(point.value)}`}</title>
                     </circle>
                     {(index % labelStep === 0 || index === points.length - 1) && (
-                        <text x={point.x} y={HEIGHT - 7} fill="currentColor" fontSize="11" textAnchor="middle" className="text-slate-400 dark:text-slate-500">
+                        <text x={point.x} y={HEIGHT - 7} fill="currentColor" fontSize="11" textAnchor="middle" className="text-slate-500 dark:text-slate-400">
                             {point.label}
                         </text>
                     )}
