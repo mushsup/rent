@@ -40,4 +40,24 @@ describe('rental end preview', () => {
       suggestedAmount: 50,
     });
   });
+
+  it('caps the preview when the end date is after the charge period', () => {
+    expect(getRentalEndPreview(tenant, '2026-08-10')).toMatchObject({
+      usedDays: 7,
+      totalDays: 7,
+      suggestedAmount: 350,
+    });
+  });
+
+  it('returns zeros for a missing or corrupt end date', () => {
+    expect(getRentalEndPreview(tenant, '')).toMatchObject({ usedDays: 0, totalDays: 0, suggestedAmount: 0 });
+    expect(getRentalEndPreview(tenant, 'garbage')).toMatchObject({ usedDays: 0, totalDays: 0, suggestedAmount: 0 });
+  });
+
+  it('suggests nothing when the end date precedes the charge period', () => {
+    expect(getRentalEndPreview(tenant, '2026-07-10')).toMatchObject({
+      usedDays: 0,
+      suggestedAmount: 0,
+    });
+  });
 });

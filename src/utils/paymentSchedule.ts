@@ -4,6 +4,12 @@ type DateInput = string | Date | number;
 
 export const DEFAULT_PAYMENT_DAY = 1;
 
+/** ISO weekday range. Anything outside 1..7 is corrupt data, not a weekday. */
+export function normalizePaymentDay(value: number | string | null | undefined, fallback = DEFAULT_PAYMENT_DAY): number {
+    const day = Number(value);
+    return day >= 1 && day <= 7 ? day : fallback;
+}
+
 export const PAYMENT_DAYS = [
     { value: 1, label: 'Понедельник' },
     { value: 2, label: 'Вторник' },
@@ -49,6 +55,9 @@ export function getPaymentDayAbbreviation(value: DateInput): string {
 
 /**
  * Finds the next occurrence of a tenant's weekly payment day after a date.
+ * @deprecated Exclusive variant (same weekday jumps +7). Prefer
+ * {@link getScheduledPaymentDate} (inclusive), which is what the ledger uses.
+ * Kept for the documented difference, covered by paymentSchedule.test.ts.
  * @param {Date|string} value Date or yyyy-MM-dd value used as the starting point.
  * @param {number} paymentDay ISO weekday from 1 (Monday) through 7 (Sunday).
  * @returns {string} Next scheduled date in yyyy-MM-dd format.

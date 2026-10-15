@@ -41,20 +41,35 @@ export function Badge({ className, children }: { className?: string; children: R
   return <span className={twMerge('inline-flex rounded px-2 py-0.5 text-xs font-semibold', className)}>{children}</span>;
 }
 
+export type StatusTone = 'lime' | 'amber' | 'red' | 'slate' | 'sky';
+
+const statusTones: Record<StatusTone, string> = {
+  lime: 'border border-lime-600/30 bg-lime-500/15 text-lime-800 dark:border-lime-400/30 dark:bg-lime-400/15 dark:text-lime-300',
+  amber: 'border border-amber-600/30 bg-amber-500/15 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-300',
+  red: 'border border-red-600/30 bg-red-500/15 text-red-800 dark:border-red-400/30 dark:bg-red-400/15 dark:text-red-300',
+  slate: 'border border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  sky: 'border border-sky-600/30 bg-sky-500/15 text-sky-800 dark:border-sky-400/30 dark:bg-sky-400/15 dark:text-sky-300',
+};
+
+/** Single status badge used everywhere: bike states, task states, payment states. */
+export function StatusBadge({ tone = 'slate', className, children }: { tone?: StatusTone; className?: string; children: ReactNode }) {
+  return <span className={twMerge('inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide', statusTones[tone], className)}>{children}</span>;
+}
+
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold text-slate-950 dark:text-white">{title}</h1>{description && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>}</div>{actions}</header>;
 }
 
-export function LoadingState({ label = 'Загрузка...' }: { label?: string }) {
-  return <div role="status" className="px-6 py-10 text-center text-sm text-slate-600 dark:text-slate-400">{label}</div>;
+export function LoadingState({ label = 'Загрузка...', rows = 3 }: { label?: string; rows?: number }) {
+  return <div role="status" aria-label={label} aria-live="polite" className="animate-pulse space-y-3 px-6 py-6">{Array.from({ length: rows }).map((_, index) => <div key={index} className="h-5 rounded bg-slate-200 dark:bg-slate-800" />)}</div>;
 }
 
 export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
-  return <div className="px-6 py-14 text-center"><p className="text-sm text-slate-600 dark:text-slate-400">{title}</p>{action}</div>;
+  return <div className="px-6 py-14 text-center"><p className="text-sm text-slate-600 dark:text-slate-400">{title}</p>{action && <div className="mt-4 flex justify-center">{action}</div>}</div>;
 }
 
 export function ErrorState({ message, retry }: { message: string; retry?: () => void }) {
-  return <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"><p>{message}</p>{retry && <Button variant="secondary" className="mt-3" onClick={retry}>Повторить</Button>}</div>;
+  return <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"><p>{message}</p>{retry && <Button variant="secondary" className="mt-3" onClick={retry}>Повторить</Button>}</div>;
 }
 
 export function Dialog({ open, title, ariaLabel, size = 'lg', className, onClose, children, footer }: { open: boolean; title?: string; ariaLabel?: string; size?: 'sm' | 'md' | 'lg'; className?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
@@ -76,7 +91,7 @@ export function Dialog({ open, title, ariaLabel, size = 'lg', className, onClose
     <section role="dialog" aria-modal="true" {...(title ? { 'aria-labelledby': titleId } : { 'aria-label': ariaLabel || 'Диалог' })} className={twMerge('relative max-h-[90vh] w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900', sizeClass, className)}>
       {title && <div className="mb-4 flex items-center justify-between gap-4"><h2 id={titleId} className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2><IconButton label="Закрыть" onClick={onClose}><X className="h-5 w-5" /></IconButton></div>}
       {children}
-      {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+      {footer && <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">{footer}</div>}
     </section>
   </div>;
 }

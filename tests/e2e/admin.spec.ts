@@ -40,7 +40,7 @@ test('задачу можно создать, завершить и удалит
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tasks) });
   });
 
-  await page.goto('./#/admin/tasks');
+  await page.goto('./tasks');
   await expect(page.getByRole('heading', { name: 'Задачи' })).toBeVisible();
   await page.getByRole('button', { name: 'Новая задача' }).click();
   await page.getByLabel('Название').fill('Заменить колодки');
@@ -55,7 +55,7 @@ test('задачу можно создать, завершить и удалит
   await page.getByRole('dialog').getByRole('button', { name: 'Удалить' }).click();
   await expect(page.getByText('Задач пока нет')).toBeVisible();
 
-  await page.goto('./#/admin/bike/bike-1');
+  await page.goto('./bike/bike-1');
   await expect(page.getByRole('heading', { name: 'Rockrider E-ST' })).toBeVisible();
   await expect(page.getByText('m1')).toBeVisible();
 });
@@ -106,10 +106,15 @@ test('арендатора можно создать с велосипедом, 
   await page.route('**/rest/v1/rpc/**', async (route) => {
     const name = new URL(route.request().url()).pathname.split('/').pop() || '';
     rpcCalls.push({ name, body: route.request().postDataJSON() });
-    await route.fulfill({ status: 200, contentType: 'application/json', body: name === 'create_tenant_with_rental' ? '"tenant-1"' : 'null' });
+    const body = name === 'create_tenant_with_rental'
+      ? '"tenant-1"'
+      : name === 'get_dashboard_snapshot'
+        ? JSON.stringify({ tenants: [], bikes: [bike] })
+        : 'null';
+    await route.fulfill({ status: 200, contentType: 'application/json', body });
   });
 
-  await page.goto('./#/admin');
+  await page.goto('./');
   await expect(page.getByRole('button', { name: 'Активные' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Показывать архивных' }).click();
   await expect(page.getByRole('button', { name: 'Показывать архивных' })).toHaveAttribute('aria-pressed', 'true');
@@ -117,43 +122,38 @@ test('арендатора можно создать с велосипедом, 
   await page.getByRole('button', { name: /Добавить/ }).click();
   await page.getByLabel('Имя арендатора').fill('Иван Тестовый');
   await page.getByLabel('Псевдоним ссылки').fill('ivan-test');
-  await page.getByLabel('Велосипед').selectOption('bike-1');
+  await page.getByRole('button', { name: 'Велосипед', exact: true }).click();
+  await page.getByRole('option', { name: /Rockrider E-ST/ }).click();
   await page.getByLabel('Еженедельный платеж (zł)').fill('300');
   await page.getByLabel('Депозит (zł)').fill('500');
   await page.getByRole('button', { name: 'Создать' }).click();
   await expect.poll(() => rpcCalls.find((call) => call.name === 'create_tenant_with_rental')?.body.p_bike_id).toBe('bike-1');
 
-  await page.goto('./#/admin/tenant/tenant-1');
+  await page.goto('./tenant/tenant-1');
   await expect(page.getByRole('heading', { name: 'Иван Тестовый' })).toBeVisible();
   await page.getByRole('button', { name: 'Редактировать арендатора' }).click();
   await page.getByRole('button', { name: 'Велосипед', exact: true }).click();
   await page.getByRole('option', { name: 'Нет велосипеда' }).click();
-  await expect(page.getByRole('heading', { name: 'Завершить аренду' })).toBeVisible();
-  await page.getByLabel('Дата возврата').fill('2026-07-24');
-  await expect(page.getByText('4 из 7 дней')).toBeVisible();
-  await page.getByLabel('Финальная сумма (zł)').fill('200');
-  await page.getByLabel('Причина завершения').fill('Велосипед возвращён');
-  await page.getByRole('button', { name: 'Завершить аренду' }).last().click();
-  await expect.poll(() => rpcCalls.find((call) => call.name === 'finish_tenant_rental')?.body).toMatchObject({
-    p_end_date: '2026-07-24',
-    p_final_amount: 200,
-    p_reason: 'Велосипед возвращён',
-  });
+  await page.getByRole('button', { name: 'Сохранить' }).click();
+  await expect.poll(() => rpcCalls.find((call) => call.name === 'update_tenant_profile')?.body.p_bike_id).toBeNull();
 
-  await page.getByRole('button', { name: 'Добавить запись' }).click();
+  await page.getByRole('button', { name: 'Добавить или изменить баланс' }).click();
+  await page.getByRole('menuitem', { name: 'Добавить запись' }).click();
   await page.getByLabel('Сумма (zł)').fill('300');
   await page.getByLabel('Комментарий').fill('Оплата за неделю');
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect.poll(() => rpcCalls.find((call) => call.name === 'record_tenant_payment')?.body.p_amount).toBe(300);
 
-  await page.getByRole('button', { name: 'Добавить запись' }).click();
+  await page.getByRole('button', { name: 'Добавить или изменить баланс' }).click();
+  await page.getByRole('menuitem', { name: 'Добавить запись' }).click();
   await page.getByLabel('Тип записи').selectOption('adjustment');
   await page.getByLabel('Сумма (zł)').fill('50');
   await page.getByLabel('Причина корректировки').fill('Компенсация ремонта');
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect.poll(() => adjustments[0]?.amount).toBe(50);
 
-  await page.getByRole('button', { name: 'Добавить запись' }).click();
+  await page.getByRole('button', { name: 'Добавить или изменить баланс' }).click();
+  await page.getByRole('menuitem', { name: 'Добавить запись' }).click();
   await page.getByLabel('Тип записи').selectOption('charge');
   await page.getByLabel('Сумма (zł)').fill('120');
   await page.getByLabel('Период с').fill('2026-07-21');
@@ -165,4 +165,55 @@ test('арендатора можно создать с велосипедом, 
     p_period_start: '2026-07-21',
     p_period_end: '2026-07-24',
   });
+});
+
+test('основные страницы админки не переполняют экран шириной 320px', async ({ page }) => {
+  await authenticate(page);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.route('**/rest/v1/rpc/get_dashboard_snapshot', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ tenants: [], bikes: [{ id: 'bike-1', status: 'available' }] }),
+  }));
+  await page.route('**/rest/v1/bikes**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([bike]),
+  }));
+  for (const route of ['./', './bikes']) {
+    await page.goto(route);
+    await expect(page.getByRole('navigation', { name: 'Мобильная навигация' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
+test('отмена подтверждения заявки не создаёт платёж', async ({ page }) => {
+  await authenticate(page);
+  const approvals: Array<Record<string, unknown>> = [];
+
+  await page.route('**/rest/v1/payment_requests**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([{
+      id: 'request-1', tenant_id: 'tenant-1', amount: 300, payment_method: 'cash', status: 'pending',
+      requested_at: '2026-09-20T09:00:00Z', tenant: { name: 'Иван Тестовый' },
+    }]),
+  }));
+  await page.route('**/rest/v1/tenants**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.route('**/rest/v1/rpc/**', async (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'approve_payment_request') approvals.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  });
+
+  await page.goto('./payments/today');
+  await page.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Подтвердить получение оплаты' })).toBeVisible();
+  await page.getByRole('button', { name: 'Отмена', exact: true }).click();
+  expect(approvals).toHaveLength(0);
+
+  await page.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+  await page.getByRole('button', { name: 'Подтвердить оплату' }).click();
+  await expect.poll(() => approvals).toHaveLength(1);
+  expect(approvals[0]).toMatchObject({ p_request_id: 'request-1', p_payment_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
 });

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { normalizeBikeStatus, type Bike, type BikeStatus } from '../../types';
+import { normalizeBikeStatus, type Battery, type Bike, type BikeStatus } from '../../types';
 
 export interface BikeTenant {
     id: string;
@@ -16,7 +16,7 @@ export interface BikeInput {
 export async function fetchInventory(): Promise<Bike[]> {
     const { data, error } = await supabase
         .from('bikes')
-        .select('id, model, type, status, voice_code')
+        .select('id, model, type, status, voice_code, tenants(id, name)')
         .order('model');
 
     if (error) throw error;
@@ -26,6 +26,7 @@ export async function fetchInventory(): Promise<Bike[]> {
         type: bike.type,
         status: normalizeBikeStatus(bike.status),
         voice_code: bike.voice_code,
+        assigned_tenant_name: Array.isArray(bike.tenants) ? bike.tenants[0]?.name || null : null,
     }));
 }
 
@@ -55,4 +56,21 @@ export async function saveBike(id: string | undefined, input: BikeInput): Promis
 export async function deleteBike(id: string): Promise<void> {
     const { error } = await supabase.from('bikes').delete().eq('id', id);
     if (error) throw error;
+}
+
+export async function fetchBatteries(): Promise<Battery[]> {
+    const { data, error } = await supabase.from('batteries').select('id, code, status, created_at').order('code');
+    if (error) throw error;
+    return (data || []) as Battery[];
+}
+
+export async function saveBattery(code: string): Promise<Battery> {
+    const normalizedCode = code.trim();
+    if (!/^\d{3}$/.test(normalizedCode)) throw new Error('Код батареи должен состоять ровно из трёх цифр');
+    const { data, error } = await supabase.from('batteries').insert({ code: normalizedCode }).select('id, code, status, created_at').single();
+    if (error) {
+        if (error.code === '23505') throw new Error(`Батарея с кодом ${normalizedCode} уже есть в инвентаре`);
+        throw error;
+    }
+    return data as Battery;
 }

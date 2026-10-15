@@ -10,7 +10,7 @@
 - [ ] [Ryxi](tasks/Ryxi.md) Restrict public Supabase data access and review authenticated policies
 - [ ] [Hino](tasks/Hino.md) Reconcile database migrations with the current application schema
 - [ ] [Byzo](tasks/Byzo.md) Add database and form validation for financial and assignment data
-- [~] [Ryvo](tasks/Ryvo.md) Configure Supabase CLI migration management for beta
+- [~] [Ryvo](tasks/Ryvo.md) Configure Supabase CLI migration management
 
 ## Financial correctness
 
@@ -20,3 +20,5 @@
 
 - [ ] [Myxy](tasks/Myxy.md) Restore lint-clean error handling and add an application error boundary
 - [ ] [Zihe](tasks/Zihe.md) Reduce Android startup cost and repeated credit-calculation work
+- [ ] Add an offline mutation queue with explicit conflict handling before allowing payments and rentals to be recorded without internet
+- [x] Restore the native mobile date picker in the new-tenant form

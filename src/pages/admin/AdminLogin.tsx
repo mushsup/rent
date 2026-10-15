@@ -21,7 +21,7 @@ export default function AdminLogin() {
 
         try {
             await signIn(email, password);
-            navigate('/admin');
+            navigate('/');
         } catch {
             setError('Неверный логин или пароль');
             setLoading(false);
@@ -29,8 +29,10 @@ export default function AdminLogin() {
     };
 
     return (
+        // Auth screen is intentionally always dark (standalone entry point,
+        // separate from the themed admin UI): no dark: variants by design.
         <div className="min-h-screen flex items-center justify-center bg-slate-900 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
+            <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-lg shadow-2xl border border-slate-700">
                 <div className="text-center">
                     <h2 className="mt-6 text-3xl font-extrabold text-white">Вход</h2>
                 </div>
@@ -49,6 +51,7 @@ export default function AdminLogin() {
                     )}
                     <div className="rounded-md shadow-sm space-y-4">
                         <div>
+                            <label htmlFor="email-address" className="sr-only">Email адрес</label>
                             <input
                                 id="email-address"
                                 name="email"
@@ -62,6 +65,7 @@ export default function AdminLogin() {
                             />
                         </div>
                         <div>
+                            <label htmlFor="password" className="sr-only">Пароль</label>
                             <input
                                 id="password"
                                 name="password"

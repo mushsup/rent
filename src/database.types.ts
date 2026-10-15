@@ -146,6 +146,27 @@ export type Database = {
         }
         Relationships: []
       }
+      batteries: {
+        Row: {
+          id: string
+          code: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       credit_transactions: {
         Row: {
           amount: number
@@ -217,6 +238,62 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          appointment_at: string | null
+          client_note: string | null
+          created_at: string
+          id: string
+          payment_method: string
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          appointment_at?: string | null
+          client_note?: string | null
+          created_at?: string
+          id?: string
+          payment_method: string
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          appointment_at?: string | null
+          client_note?: string | null
+          created_at?: string
+          id?: string
+          payment_method?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -256,6 +333,7 @@ export type Database = {
         Row: {
           adjustment_date: string
           amount: number
+          balance_override: number | null
           comment: string
           created_at: string
           direction: string
@@ -266,6 +344,7 @@ export type Database = {
         Insert: {
           adjustment_date: string
           amount: number
+          balance_override?: number | null
           comment: string
           created_at?: string
           direction: string
@@ -276,6 +355,7 @@ export type Database = {
         Update: {
           adjustment_date?: string
           amount?: number
+          balance_override?: number | null
           comment?: string
           created_at?: string
           direction?: string
@@ -309,6 +389,7 @@ export type Database = {
           due_date: string
           id: string
           is_automatic: boolean
+          approved_at: string | null
           period_end: string
           period_start: string
           status: string
@@ -322,6 +403,7 @@ export type Database = {
           due_date: string
           id?: string
           is_automatic?: boolean
+          approved_at?: string | null
           period_end: string
           period_start: string
           status?: string
@@ -335,6 +417,7 @@ export type Database = {
           due_date?: string
           id?: string
           is_automatic?: boolean
+          approved_at?: string | null
           period_end?: string
           period_start?: string
           status?: string
@@ -540,6 +623,10 @@ export type Database = {
         Args: { p_day_off_date: string; p_reason: string; p_tenant_id: string }
         Returns: string
       }
+      approve_payment_request: {
+        Args: { p_admin_note?: string; p_payment_date: string; p_request_id: string }
+        Returns: undefined
+      }
       calculate_tenant_rental_period: {
         Args: {
           p_period_end: string
@@ -547,6 +634,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      approve_tenant_payment_charge: {
+        Args: { p_charge_id: string }
+        Returns: undefined
       }
       close_tenant_rental: {
         Args: { p_end_date?: string; p_tenant_id: string }
@@ -592,7 +683,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_finished_tenant_rental: {
+        Args: {
+          p_end_date: string
+          p_event_id: string
+          p_final_amount: number
+          p_reason: string
+        }
+        Returns: undefined
+      }
       get_public_tenant_profile: { Args: { p_slug: string }; Returns: Json }
+      get_dashboard_tenants: {
+        Args: { p_reference_date: string; p_show_archived?: boolean }
+        Returns: Json
+      }
+      get_dashboard_snapshot: {
+        Args: { p_reference_date: string; p_show_archived?: boolean }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       record_tenant_payment: {
         Args: {
@@ -602,6 +710,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      reject_payment_request: {
+        Args: { p_admin_note: string; p_request_id: string }
+        Returns: undefined
       }
       refresh_tenant_rental_charges: {
         Args: { p_effective_from?: string; p_tenant_id: string }

@@ -27,18 +27,13 @@ const TENANT_ACCOUNTING_FIELDS = [
     'opening_balance',
     'payments(id, amount, payment_date, comment, created_at)',
     'payment_terms:tenant_payment_terms(id, weekly_payment, discount_amount, payment_day, effective_from, effective_to)',
-    'payment_charges:tenant_payment_charges(id, due_date, period_start, period_end, amount, breakdown, comment, status, is_automatic, created_at)',
-    'payment_adjustments:tenant_payment_adjustments(id, direction, amount, adjustment_date, comment, source_event_id, created_at)',
+    'payment_charges:tenant_payment_charges(id, due_date, period_start, period_end, amount, breakdown, comment, status, is_automatic, approved_at, created_at)',
+    'payment_adjustments:tenant_payment_adjustments(id, direction, amount, balance_override, adjustment_date, comment, source_event_id, created_at)',
     'rental_events:tenant_rental_events(id, event_type, effective_date, bike_id, bike_model, bike_type, battery_config, weekly_payment, discount_amount, amount, reason, details, created_at)',
     'bikes(id, model, type, status)'
 ];
 
 const TENANT_DETAIL_SELECT = [...TENANT_IDENTITY_FIELDS, ...TENANT_ACCOUNTING_FIELDS].join(', ');
-const TENANT_DASHBOARD_SELECT = [
-    ...TENANT_IDENTITY_FIELDS.filter(field => field !== 'phone' && field !== 'telegram_username' && field !== 'deposit' && field !== 'admin_comment'),
-    ...TENANT_ACCOUNTING_FIELDS
-].join(', ');
-
 function normalizeTenant(data: unknown): TenantDetail | null {
     if (!data) return null;
 
@@ -73,12 +68,20 @@ export async function fetchBikes(): Promise<Bike[]> {
     });
 }
 
+/** Complete inventory data required when assigning a rental. */
+export async function fetchRentalBikeOptions(): Promise<Bike[]> {
+    return fetchBikes();
+}
+
 export async function fetchTenantDetail(id: string): Promise<TenantDetail | null> {
+    // Charge generation writes to the database. It must never take the
+    // readable tenant data down with it: a failed ensure degrades to a
+    // warning and the page still renders from persisted rows.
     const { error: scheduleError } = await supabase.rpc('ensure_tenant_payment_charges', {
         p_tenant_id: id,
         p_reference_date: format(new Date(), 'yyyy-MM-dd'),
     });
-    if (scheduleError) throw scheduleError;
+    if (scheduleError) console.warn('ensure_tenant_payment_charges failed, reading persisted data instead', scheduleError);
 
     const { data, error } = await supabase
         .from('tenants')
@@ -96,39 +99,85 @@ export async function fetchPublicTenantProfile(slug: string): Promise<Tenant | n
     return data as Tenant | null;
 }
 
-export async function fetchDashboardTenants(showArchived: boolean): Promise<Tenant[]> {
-    const { error: scheduleError } = await supabase.rpc('ensure_all_tenant_payment_charges', {
+export interface DashboardSnapshot {
+    tenants: Tenant[];
+    bikes: Pick<Bike, 'id' | 'status'>[];
+}
+
+export async function fetchDashboardSnapshot(showArchived: boolean): Promise<DashboardSnapshot> {
+    const snapshotResult = await supabase.rpc('get_dashboard_snapshot', {
         p_reference_date: format(new Date(), 'yyyy-MM-dd'),
+        p_show_archived: showArchived,
     });
-    if (scheduleError) throw scheduleError;
+    if (snapshotResult.error) throw snapshotResult.error;
+
+    const snapshot = (snapshotResult.data || {}) as { tenants?: Array<Tenant & { bikes?: Bike | Bike[] | null }>; bikes?: Pick<Bike, 'id' | 'status'>[] };
+    // Scope the adjustments read to the tenants on screen instead of
+    // pulling the whole table on every dashboard load.
+    const tenantIds = (snapshot.tenants || []).map(tenant => tenant.id).filter((id): id is string => Boolean(id));
+    const adjustmentsQuery = supabase
+        .from('tenant_payment_adjustments')
+        .select('id, tenant_id, direction, amount, balance_override, adjustment_date, comment, source_event_id, created_at');
+    const { data: adjustmentsData, error: adjustmentsError } = tenantIds.length > 0
+        ? await adjustmentsQuery.in('tenant_id', tenantIds)
+        : { data: [], error: null };
+    if (adjustmentsError) throw adjustmentsError;
+    const adjustmentsByTenant = new Map<string, PaymentAdjustment[]>();
+    (adjustmentsData || []).forEach((adjustment) => {
+        const tenantAdjustments = adjustmentsByTenant.get(adjustment.tenant_id) || [];
+        tenantAdjustments.push({ ...adjustment, direction: normalizePaymentAdjustmentDirection(adjustment.direction) });
+        adjustmentsByTenant.set(adjustment.tenant_id, tenantAdjustments);
+    });
+    const tenants = (snapshot.tenants || []).map((tenant) => {
+        const bike = normalizeBikeRelation(tenant.bikes);
+        return {
+            ...tenant,
+            bikes: bike ? { ...bike, status: normalizeBikeStatus(bike.status) } : null,
+            payment_charges: (tenant.payment_charges || []).map((charge) => ({ ...charge, status: normalizePaymentChargeStatus(charge.status) })),
+            payment_adjustments: adjustmentsByTenant.get(tenant.id || '')
+                || (tenant.payment_adjustments || []).map((adjustment) => ({ ...adjustment, direction: normalizePaymentAdjustmentDirection(adjustment.direction) })),
+        };
+    });
+
+    return {
+        tenants,
+        bikes: (snapshot.bikes || []).map((bike) => ({ ...bike, status: normalizeBikeStatus(bike.status) })),
+    };
+}
+
+/** Loads only today's pending charges for the approval screen. */
+export async function fetchTodayPaymentApprovals(referenceDate = new Date()): Promise<Tenant[]> {
+    const todayKey = format(referenceDate, 'yyyy-MM-dd');
+    // Same rule as fetchTenantDetail: a failed generation must not hide
+    // the already persisted charges from the approval screen.
+    const { error: scheduleError } = await supabase.rpc('ensure_all_tenant_payment_charges', {
+        p_reference_date: todayKey,
+    });
+    if (scheduleError) console.warn('ensure_all_tenant_payment_charges failed, reading persisted charges instead', scheduleError);
 
     const { data, error } = await supabase
         .from('tenants')
-        .select(TENANT_DASHBOARD_SELECT)
-        .eq('is_archived', showArchived)
-        .order('name');
+        .select('id, name, battery_config, bikes(id, model, type, status), payment_charges:tenant_payment_charges!inner(id, due_date, amount, breakdown, created_at, approved_at, status)')
+        .eq('is_archived', false)
+        .lte('payment_charges.due_date', todayKey)
+        .is('payment_charges.approved_at', null)
+        .neq('payment_charges.status', 'waived')
+        .order('created_at', { foreignTable: 'payment_charges', ascending: true });
 
     if (error) throw error;
-
-    const rows = (data || []) as Array<Tenant & { bikes?: Bike | Bike[] | null }>;
-    return rows.map((tenant) => {
-        const bike = normalizeBikeRelation(tenant.bikes);
-        return {
+    return (data || []).map((tenant) => ({
         ...tenant,
-        bikes: bike ? {
-            ...bike,
-            status: normalizeBikeStatus(bike.status),
-        } : null,
+        bikes: normalizeBikeRelation(tenant.bikes as unknown as Bike | Bike[] | null),
         payment_charges: (tenant.payment_charges || []).map((charge) => ({
             ...charge,
             status: normalizePaymentChargeStatus(charge.status),
         })),
-        payment_adjustments: (tenant.payment_adjustments || []).map((adjustment) => ({
-            ...adjustment,
-            direction: normalizePaymentAdjustmentDirection(adjustment.direction),
-        })),
-        };
-    });
+    })) as unknown as Tenant[];
+}
+
+export async function approveTenantPaymentCharge(chargeId: string): Promise<void> {
+    const { error } = await supabase.rpc('approve_tenant_payment_charge', { p_charge_id: chargeId });
+    if (error) throw error;
 }
 
 export async function updateTenantProfile(id: string, form: TenantEditForm): Promise<void> {
@@ -145,7 +194,8 @@ export async function updateTenantProfile(id: string, form: TenantEditForm): Pro
         p_phone: form.phone?.trim() || null,
         p_telegram_username: normalizeTelegram(form.telegram_username) || null,
         p_battery_config: form.battery_config || null,
-        p_discount_amount: Number(form.discount_amount) || 0,
+        // Permanent discounts are no longer part of the rental workflow.
+        p_discount_amount: 0,
         p_effective_date: format(new Date(), 'yyyy-MM-dd'),
     });
 
@@ -163,7 +213,6 @@ export interface NewTenantInput {
     phone?: string;
     telegram_username?: string;
     battery_config?: string | null;
-    discount_amount?: number | string;
 }
 
 export async function createTenant(input: NewTenantInput): Promise<void> {
@@ -184,7 +233,7 @@ export async function createTenant(input: NewTenantInput): Promise<void> {
         p_phone: input.phone?.trim() || null,
         p_telegram_username: normalizeTelegram(input.telegram_username) || null,
         p_battery_config: input.battery_config || null,
-        p_discount_amount: Number(input.discount_amount) || 0
+        p_discount_amount: 0
     });
 
     if (error) throw error;
@@ -199,37 +248,27 @@ export async function setTenantArchived(id: string, archived: boolean): Promise<
     if (error) throw error;
 }
 
-export async function finishTenantRental(
-    tenantId: string,
-    endDate: string,
-    finalAmount: number,
-    reason: string
-): Promise<void> {
-    const { error } = await supabase.rpc('finish_tenant_rental', {
-        p_tenant_id: tenantId,
-        p_end_date: endDate,
-        p_final_amount: finalAmount,
-        p_reason: reason.trim(),
-    });
-    if (error) throw error;
-}
-
 export async function deleteTenant(id: string): Promise<void> {
     const { error } = await supabase.rpc('delete_tenant_with_relations', { p_tenant_id: id });
     if (error) throw error;
 }
 
-export async function resetTenantAccounting(
-    tenantId: string,
-    input: { opening_balance: number; accounting_start_date: string; next_payment_date: string; weekly_payment: number; payment_day: number },
-): Promise<void> {
-    const { error } = await supabase.rpc('reset_tenant_accounting', {
+export async function finishTenantRental(tenantId: string, input: { end_date: string; final_amount: number; reason: string }): Promise<void> {
+    const { error } = await supabase.rpc('finish_tenant_rental', {
         p_tenant_id: tenantId,
-        p_opening_balance: input.opening_balance,
-        p_accounting_start_date: input.accounting_start_date,
-        p_next_payment_date: input.next_payment_date,
-        p_weekly_payment: input.weekly_payment,
-        p_payment_day: input.payment_day,
+        p_end_date: input.end_date,
+        p_final_amount: input.final_amount,
+        p_reason: input.reason.trim(),
+    });
+    if (error) throw error;
+}
+
+export async function updateFinishedTenantRental(eventId: string, input: { end_date: string; final_amount: number; reason: string }): Promise<void> {
+    const { error } = await supabase.rpc('update_finished_tenant_rental', {
+        p_event_id: eventId,
+        p_end_date: input.end_date,
+        p_final_amount: input.final_amount,
+        p_reason: input.reason.trim(),
     });
     if (error) throw error;
 }
@@ -248,7 +287,10 @@ export async function deleteTenantRecord(record: DeletableRecord, tenantId?: str
     const table = record.type === 'adjustment'
         ? 'tenant_payment_adjustments'
         : 'payments';
-    const { error } = await supabase.from(table).delete().eq('id', record.id);
+    const request = tenantId
+        ? supabase.from(table).delete().eq('id', record.id).eq('tenant_id', tenantId)
+        : supabase.from(table).delete().eq('id', record.id);
+    const { error } = await request;
     if (error) throw error;
 }
 
@@ -273,11 +315,12 @@ export async function saveCharge(
 export async function saveAdjustment(
     tenantId: string,
     adjustment: PaymentAdjustment | null,
-    payload: Pick<PaymentAdjustment, 'direction' | 'amount' | 'adjustment_date' | 'comment'>
+    payload: Pick<PaymentAdjustment, 'direction' | 'amount' | 'balance_override' | 'adjustment_date' | 'comment'>
 ): Promise<void> {
     const normalizedPayload = {
         ...payload,
         amount: Number(payload.amount),
+        balance_override: payload.balance_override == null ? null : Number(payload.balance_override),
         comment: payload.comment || '',
     };
     const adjustmentId = adjustment?.id;
@@ -305,7 +348,8 @@ export async function savePayment(tenantId: string, payment: PaymentEditorValue 
         const { error } = await supabase
             .from('payments')
             .update({ amount, payment_date: date, comment: comment || null })
-            .eq('id', payment.id);
+            .eq('id', payment.id)
+            .eq('tenant_id', tenantId);
         if (error) throw error;
         return;
     }
@@ -315,15 +359,6 @@ export async function savePayment(tenantId: string, payment: PaymentEditorValue 
         p_amount: amount,
         p_payment_date: date,
         p_comment: comment || null
-    });
-    if (error) throw error;
-}
-
-export async function addTenantDayOff(tenantId: string, date: string, reason: string): Promise<void> {
-    const { error } = await supabase.rpc('add_tenant_day_off', {
-        p_tenant_id: tenantId,
-        p_day_off_date: date,
-        p_reason: reason.trim(),
     });
     if (error) throw error;
 }

@@ -1,5 +1,46 @@
 @import "tailwindcss";
 
+@keyframes rent-progress-cell-fill {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.rent-progress-cell {
+  opacity: 0;
+  animation: rent-progress-cell-fill 420ms ease-out forwards;
+}
+
+.rent-balance-point {
+  transform: scaleX(0);
+  animation: rent-balance-point-grow 360ms ease-out forwards;
+}
+
+@keyframes rent-balance-point-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes rent-occupancy-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.rent-occupancy-segment {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: rent-occupancy-fill 2s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rent-progress-cell,
+  .rent-balance-point,
+  .rent-occupancy-segment {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @variant dark (&:where(.dark, .dark *));
 
 @layer base {
@@ -102,6 +143,37 @@
   select,
   textarea {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  select:not([multiple]) {
+    min-height: 2.75rem;
+    padding-right: 2.75rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem 1rem;
+  }
+
+  select:not([multiple]):disabled {
+    cursor: not-allowed;
+  }
+
+  select:not([multiple]):focus {
+    outline: none;
+    border-color: #a6d600;
+    box-shadow: 0 0 0 3px rgb(200 255 0 / 0.16);
+  }
+
+  input[type='checkbox'] {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+    accent-color: #a6d600;
   }
 
 }

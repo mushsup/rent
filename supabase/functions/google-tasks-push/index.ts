@@ -31,6 +31,16 @@ async function requireUser(request: Request) {
   return error ? null : data.user;
 }
 
+async function isAdmin(userId: string): Promise<boolean> {
+  const { data, error } = await serviceClient
+    .from('admin_users')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -38,6 +48,7 @@ Deno.serve(async (request) => {
   try {
     const user = await requireUser(request);
     if (!user) return json({ error: 'Unauthorized' }, 401);
+    if (!await isAdmin(user.id)) return json({ error: 'Forbidden' }, 403);
     if (!webhookUrl || !webhookSecret) {
       return json({ ok: false, queued: false, warning: 'Google Tasks webhook is not configured yet' });
     }

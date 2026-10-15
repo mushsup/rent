@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 import type { PaymentCharge, Tenant } from '../types';
 
 export interface RentalEndPreview {
@@ -15,6 +15,9 @@ function roundMoney(value: number): number {
 }
 
 export function getRentalEndPreview(tenant: Tenant, endDate: string): RentalEndPreview {
+  const empty: RentalEndPreview = { charge: null, periodStart: endDate, periodEnd: endDate, usedDays: 0, totalDays: 0, suggestedAmount: 0 };
+  // User input from the modal: never crash on an empty or malformed date.
+  if (!endDate || !isValid(parseISO(endDate))) return empty;
   const charges = (tenant.payment_charges || [])
     .filter(charge => charge.status !== 'waived' && charge.period_start && charge.period_end)
     .sort((left, right) => left.period_end!.localeCompare(right.period_end!));
@@ -25,7 +28,9 @@ export function getRentalEndPreview(tenant: Tenant, endDate: string): RentalEndP
 
   const periodStart = charge?.period_start || format(parseISO(endDate), 'yyyy-MM-dd');
   const originalPeriodEnd = charge?.period_end || format(addDays(parseISO(endDate), 6), 'yyyy-MM-dd');
-  const periodEnd = endDate < periodStart ? periodStart : endDate;
+  // An end date before the charge period means zero used days, not one.
+  if (endDate < periodStart) return { charge, periodStart, periodEnd: periodStart, usedDays: 0, totalDays: 0, suggestedAmount: 0 };
+  const periodEnd = endDate;
   const totalDays = Math.max(differenceInCalendarDays(parseISO(originalPeriodEnd), parseISO(periodStart)) + 1, 1);
   const usedDays = Math.min(
     Math.max(differenceInCalendarDays(parseISO(periodEnd), parseISO(periodStart)) + 1, 0),

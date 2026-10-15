@@ -4,7 +4,16 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#111827",
   "theme_color": "#4f46e5",
-  "description": "Панель управления арендой электровелосипедов"
+  "description": "Панель управления арендой электровелосипедов",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

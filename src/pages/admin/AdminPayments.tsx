@@ -6,9 +6,11 @@ import TrendChart from '../../components/TrendChart';
 import { deleteCredit, deleteCreditTransaction, fetchCredits as loadCredits, saveCredit, saveCreditTransaction } from '../../features/credits/api';
 import { generateCreditSchedule } from '../../features/credits/schedule';
 import type { Credit, CreditTransaction, CreditTransactionType } from '../../types';
-import { ConfirmDialog } from '../../shared/ui';
+import { ConfirmDialog, EmptyState, ErrorState, LoadingState } from '../../shared/ui';
 import { queryKeys } from '../../shared/lib/queryKeys';
 import { getErrorMessage } from '../../shared/lib/errors';
+import { formatEur, formatZl } from '../../shared/lib/money';
+import { formatDate } from '../../shared/lib/format';
 import { CreditModal, TransactionModal, type CreditFormData, type TransactionFormData } from './CreditModals';
 import { buildCreditDebtChartData, getCreditDebt, getTotalCreditDebt } from './creditSelectors';
 
@@ -140,8 +142,8 @@ export default function AdminPayments() {
         setPendingDelete({ type: 'transaction', id });
     };
 
-    if (loading) return <div className="text-slate-900 dark:text-white text-center">Загрузка...</div>;
-    if (isError) return <div role="alert" className="text-center text-red-600 dark:text-red-400">Не удалось загрузить кредиты.</div>;
+    if (loading) return <LoadingState label="Загрузка кредитов…" />;
+    if (isError) return <ErrorState message="Не удалось загрузить кредиты." retry={() => { void queryClient.invalidateQueries({ queryKey: queryKeys.credits.all }); }} />;
 
     const referenceDate = new Date();
     const totalDebt = getTotalCreditDebt(credits, creditTransactions, referenceDate);
@@ -169,7 +171,7 @@ export default function AdminPayments() {
                                 <Landmark className="w-7 h-7" />
                             </div>
                             <h2 className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Общая сумма</h2>
-                            <div className="text-5xl font-extrabold text-black dark:text-white flex items-center justify-center gap-2">
+                            <div className="text-5xl font-bold tabular-nums text-slate-950 dark:text-white flex items-center justify-center gap-2">
                                 <span className="text-3xl text-slate-400">€</span>
                                 {totalDebt.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
@@ -178,8 +180,8 @@ export default function AdminPayments() {
                         {totalGraphData.length > 0 && (
                             <div className="w-full h-[250px] mt-6 relative z-0" style={{ outline: 'none' }}>
                                 <TrendChart
-                                    data={totalGraphData.map((point) => ({ label: point.label, value: point.debtAmount, detail: `${point.label}: €${point.debtAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }))}
-                                    valueFormatter={(value) => `€${value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                    data={totalGraphData.map((point) => ({ label: point.label, value: point.debtAmount, detail: `${point.label}: ${formatEur(point.debtAmount)}` }))}
+                                    valueFormatter={(value) => formatEur(value)}
                                     ariaLabel="График общей суммы долга"
                                 />
                             </div>
@@ -187,7 +189,7 @@ export default function AdminPayments() {
                     </div>
 
                     <div className="flex justify-between items-center px-1">
-                        <h1 className="text-2xl font-bold text-black dark:text-white">Кредиты</h1>
+                        <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Кредиты</h1>
                         <button onClick={openCreateModal} className="flex items-center px-4 py-2 bg-lime-600 hover:bg-lime-700 text-slate-950 rounded-lg shadow-sm transition-colors font-semibold">
                             <Plus className="w-5 h-5 mr-2" /> Добавить
                         </button>
@@ -195,7 +197,7 @@ export default function AdminPayments() {
 
                     <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                         {credits.length === 0 ? (
-                            <div className="p-8 text-center text-slate-500 dark:text-slate-400">Нет активных кредитов.</div>
+                            <EmptyState title="Нет активных кредитов" action={<button type="button" onClick={openCreateModal} className="rounded-md bg-lime-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-400">Добавить кредит</button>} />
                         ) : (
                             <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {credits.map((credit) => {
@@ -203,22 +205,22 @@ export default function AdminPayments() {
                                     return (
                                         <li key={credit.id} onClick={() => setSelectedCredit(credit)} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer group">
                                             <div className="mb-4 sm:mb-0">
-                                                <h3 className="text-lg font-bold text-black dark:text-white flex items-center gap-3">
+                                                <h3 className="text-lg font-bold text-slate-950 dark:text-white flex items-center gap-3">
                                                     <div className="p-2 bg-lime-600 text-slate-950 rounded-full shadow-sm group-hover:bg-lime-700 transition-colors">
                                                         <Landmark className="w-4 h-4" />
                                                     </div>
                                                     {credit.name}
                                                 </h3>
                                                 <div className="text-sm text-slate-500 mt-2 space-x-3 ml-11">
-                                                    <span>Взят: {new Date(credit.start_date).toLocaleDateString('ru-RU')}</span>
-                                                    <span>Остаток: <span className="text-black dark:text-white font-semibold">€ {currentDebt.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+                                                    <span>Взят: {formatDate(credit.start_date)}</span>
+                                                    <span>Остаток: <span className="text-slate-950 dark:text-white font-semibold">{formatEur(currentDebt)}</span></span>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button onClick={(e) => openEditModal(e, credit)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-lime-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                                                <button type="button" aria-label="Редактировать кредит" title="Редактировать кредит" onClick={(e) => openEditModal(e, credit)} className="min-h-10 min-w-10 p-2 text-slate-500 dark:text-slate-400 hover:text-lime-800 dark:hover:text-lime-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={(e) => handleDelete(e, credit.id)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                                                <button type="button" aria-label="Удалить кредит" title="Удалить кредит" onClick={(e) => handleDelete(e, credit.id)} className="min-h-10 min-w-10 p-2 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
@@ -231,12 +233,12 @@ export default function AdminPayments() {
                 </>
             ) : (
                 <div className="space-y-6">
-                    <button onClick={() => setSelectedCredit(null)} className="flex items-center text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 px-2 py-1 rounded-md transition-colors mb-4 font-medium">
+                    <button onClick={() => setSelectedCredit(null)} className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 px-2 py-1 rounded-md transition-colors mb-4 font-medium">
                         <ChevronLeft className="w-5 h-5 mr-1" /> Назад к списку
                     </button>
 
                     <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-                        <h2 className="text-2xl font-bold text-black dark:text-white mb-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                        <h2 className="text-2xl font-bold text-slate-950 dark:text-white mb-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
                             <div className="flex items-center">
                                 <Landmark className="w-6 h-6 mr-3 text-lime-400" />
                                 {selectedCredit.name}
@@ -244,13 +246,13 @@ export default function AdminPayments() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => { setEditingTransaction(null); setTransactionType('addition'); setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0] }); setIsTransactionModalOpen(true); }}
-                                    className="flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                                    className="flex items-center px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 text-sm font-bold rounded-lg transition-colors shadow-sm"
                                 >
                                     <Plus className="w-4 h-4 mr-1.5" /> Взять еще
                                 </button>
                                 <button
                                     onClick={() => { setEditingTransaction(null); setTransactionType('payment'); setTransactionData({ amount: '', date: new Date().toISOString().split('T')[0] }); setIsTransactionModalOpen(true); }}
-                                    className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                                    className="flex items-center px-4 py-2 bg-lime-500 hover:bg-lime-400 text-slate-950 text-sm font-bold rounded-lg transition-colors shadow-sm"
                                 >
                                     <Plus className="w-4 h-4 mr-1.5" /> Оплатить
                                 </button>
@@ -258,40 +260,40 @@ export default function AdminPayments() {
                         </h2>
 
                         <div className="h-[250px] min-h-[250px] focus:outline-none mb-8" style={{ outline: 'none' }}>
-                            <TrendChart
-                                data={[...selectedSchedule].reverse().map((schedule) => ({ label: schedule.graphLabel, value: schedule.amount, detail: `${schedule.graphLabel}: ${schedule.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł` }))}
-                                accent="#f97316"
-                                valueFormatter={(value) => `${value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`}
-                                ariaLabel="График текущего долга"
-                            />
+                                <TrendChart
+                                    data={[...selectedSchedule].reverse().map((schedule) => ({ label: schedule.graphLabel, value: schedule.amount, detail: `${schedule.graphLabel}: ${formatZl(schedule.amount)}` }))}
+                                    accent="#f97316"
+                                    valueFormatter={(value) => formatZl(value)}
+                                    ariaLabel="График текущего долга"
+                                />
                         </div>
 
-                        <h3 className="text-xl font-bold text-black dark:text-white mb-4">История операций</h3>
-                        <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                                <thead className="bg-slate-800/80">
+                        <h3 className="text-xl font-bold text-slate-950 dark:text-white mb-4">История операций</h3>
+                        <div className="overflow-x-auto max-w-full bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                            <table className="min-w-[640px] w-full divide-y divide-slate-200 dark:divide-slate-700">
+                                <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0">
                                     <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Дата</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Действие</th>
-                                        <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Остаток (zł)</th>
+                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wide">Дата</th>
+                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wide">Действие</th>
+                                        <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wide">Остаток (zł)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                     {selectedSchedule.map((s, i) => (
                                         <tr key={i} className="transition-colors hover:bg-black/5 dark:hover:bg-white/10 group">
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{s.date}</td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
+                                            <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500 dark:text-slate-400">{s.date}</td>
+                                            <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
                                                 {s.action}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-4 text-sm font-bold text-slate-900 dark:text-white text-right">
+                                            <td className="whitespace-nowrap px-4 py-4 text-sm font-bold text-slate-900 dark:text-white text-right">
                                                 <div className="flex items-center justify-end gap-2 text-right">
                                                     {s.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     {s.txId && (
-                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => openEditTransaction(creditTransactions.find(t => t.id === s.txId))} className="p-1 hover:text-lime-400 transition-colors">
+                                                        <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
+                                                            <button type="button" aria-label="Редактировать операцию" title="Редактировать операцию" onClick={() => openEditTransaction(creditTransactions.find(t => t.id === s.txId))} className="min-h-10 min-w-10 p-2 hover:text-lime-800 dark:hover:text-lime-400 transition-colors">
                                                                 <Edit2 className="w-3.5 h-3.5" />
                                                             </button>
-                                                            <button onClick={() => s.txId && handleDeleteTransaction(s.txId)} className="p-1 hover:text-red-500 transition-colors">
+                                                            <button type="button" aria-label="Удалить операцию" title="Удалить операцию" onClick={() => s.txId && handleDeleteTransaction(s.txId)} className="min-h-10 min-w-10 p-2 hover:text-red-600 dark:hover:text-red-400 transition-colors">
                                                                 <Trash2 className="w-3.5 h-3.5" />
                                                             </button>
                                                         </div>

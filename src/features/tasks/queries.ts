@@ -16,7 +16,10 @@ export function useSaveBikeTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: BikeTaskInput }) => saveBikeTask(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      if (result.syncWarning) toast.error(result.syncWarning);
+    },
     onError: (error) => toast.error(`Ошибка сохранения: ${getErrorMessage(error)}`),
   });
 }
@@ -25,7 +28,10 @@ export function useDeleteBikeTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteBikeTask,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      if (result.syncWarning) toast.error(result.syncWarning);
+    },
     onError: (error) => toast.error(`Ошибка удаления: ${getErrorMessage(error)}`),
   });
 }

@@ -2,11 +2,11 @@
 
 ## Runtime
 
-The project is a React/Vite single-page application deployed as static assets. `HashRouter` keeps the current `/rent/` deployment compatible with static hosting; `VITE_BASE_PATH=/` supports a domain-root Cloudflare Pages deployment. Route-level lazy loading keeps the dashboard, charts, payments, and tenant detail out of the initial bundle.
+The project is a React/Vite single-page application deployed as static assets. `BrowserRouter` serves clean URLs from the domain root (`vite.base = '/'`): `/` is the admin dashboard, `/:slug` and `/history/...` are tenant pages, and `netlify.toml` rewrites all paths to `/index.html` (200) for static hosting. There are no in-app route redirects. Route-level lazy loading keeps the dashboard, charts, payments, and tenant detail out of the initial bundle.
 
 Supabase provides Auth and PostgreSQL. The browser uses only the publishable/anon key. Database permissions and authenticated mutations are enforced by RLS and SQL functions; service-role keys never belong in frontend code.
 
-The Supabase CLI configuration and timestamped migrations under `supabase/` manage the isolated beta database. The beta project reference is fixed in package scripts; future remote schema changes use migration files rather than manual SQL Editor changes. `src/database.types.ts` is generated from that schema and types the browser client.
+The Supabase CLI configuration and timestamped migrations under `supabase/` manage the application database. The project reference is fixed in package scripts; future remote schema changes use migration files rather than manual SQL Editor changes. `src/database.types.ts` is generated from that schema and types the browser client.
 
 Operational RLS policies call `is_admin()`, backed by the `admin_users` allowlist. Existing operators were retained when this policy was introduced; newly created Auth users have no table access until explicitly added. Anonymous clients cannot select operational tables and can only call the limited public tenant RPC.
 
@@ -37,4 +37,4 @@ TypeScript strict mode is enabled across the application, including strict nulla
 
 ## Dependency audit
 
-Production audit currently reports the React Router RSC/server-action advisory `GHSA-qwww-vcr4-c8h2`. This application is a client-only `HashRouter` SPA and does not enable React Server Components, framework mode, actions, loaders, or server rendering, so the vulnerable execution path is not present. The available npm remediation is a downgrade to 7.11, which reintroduces several older router advisories; remain on the current patched 7.x release and reassess when an upstream version outside the advisory range is published.
+Production audit currently reports the React Router RSC/server-action advisory `GHSA-qwww-vcr4-c8h2`. This application is a client-only `BrowserRouter` SPA and does not enable React Server Components, framework mode, actions, loaders, or server rendering, so the vulnerable execution path is not present. The available npm remediation is a downgrade to 7.11, which reintroduces several older router advisories; remain on the current patched 7.x release and reassess when an upstream version outside the advisory range is published.

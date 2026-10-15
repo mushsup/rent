@@ -2,7 +2,7 @@
 
 ## Project context
 
-This repository is a React 18 single-page application built with Vite 8. It uses TypeScript/TSX, React Router 7 with `HashRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and feature-level API modules. The deploy base path is `/rent/`.
+This repository is a React 18 single-page application built with Vite 8. It uses TypeScript/TSX, React Router 7 with `BrowserRouter`, TanStack React Query, Tailwind CSS 4, Supabase Auth/Postgres, and feature-level API modules. The app is served from the domain root (`vite.base = '/'`): `/` is the admin (login form renders inline without a session), `/:slug` and `/history/...` are tenant pages. There are no in-app route redirects; the single `/* → /index.html` rewrite (200) in `netlify.toml` exists only so deep links work on static hosting.
 
 ## Working agreements
 
@@ -25,7 +25,7 @@ This repository is a React 18 single-page application built with Vite 8. It uses
 
 ## Routing and authentication
 
-- Add routes in `src/App.tsx`; remember that the app uses `HashRouter`, so URLs are hash-based in production.
+- Add routes in `src/App.tsx`; URLs are clean (`BrowserRouter`). Static segments win over `/:slug`; never add a static route that collides with `RESERVED_SLUGS` in `src/utils/slug.ts`.
 - Keep all admin pages under the authenticated `Layout` route. Do not treat a hidden link or client-side redirect as authorization.
 - Use Supabase Auth session state for access control and preserve the existing redirect to `/admin/login`.
 - Do not put service-role keys, database passwords, or other privileged credentials in source, `VITE_*` variables, or browser storage.

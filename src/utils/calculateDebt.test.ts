@@ -70,4 +70,38 @@ describe('calculateDebt', () => {
       expectedAmount: 0,
     });
   });
+
+  it('marks a charge overdue the day after its due date', () => {
+    expect(calculateDebt(tenant, [], '2026-07-27')).toMatchObject({
+      totalDebt: 300,
+      overdueAmount: 300,
+      dueTodayAmount: 0,
+      isOverdue: true,
+      hasDueToday: false,
+    });
+  });
+
+  it('excludes approved charges from the due-today work queue', () => {
+    const approved = calculateDebt({
+      ...tenant,
+      payment_charges: [{ id: 'a', due_date: '2026-07-26', amount: 300, approved_at: '2026-07-26T10:00:00Z' }],
+    }, [], '2026-07-26');
+    expect(approved).toMatchObject({ unapprovedDueTodayCount: 0, hasUnapprovedDueToday: false });
+    // Approval confirms the charge but does not pay it: the debt stays.
+    expect(approved.totalDebt).toBe(300);
+
+    const pending = calculateDebt(tenant, [], '2026-07-26');
+    expect(pending).toMatchObject({ unapprovedDueTodayCount: 1, hasUnapprovedDueToday: true });
+  });
+
+  it('skips corrupt payments instead of poisoning totals', () => {
+    expect(calculateDebt(tenant, [
+      { amount: 'abc', payment_date: '2026-07-26' },
+      { amount: null, payment_date: 'not-a-date' },
+    ] as never, '2026-07-26')).toMatchObject({ paidTotal: 0, totalDebt: 300 });
+  });
+
+  it('returns zeros for a missing tenant', () => {
+    expect(calculateDebt(null)).toMatchObject({ totalDebt: 0, overdueAmount: 0, isOverdue: false, paidTotal: 0 });
+  });
 });

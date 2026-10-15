@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   eq: vi.fn(),
   update: vi.fn(),
+  insert: vi.fn(),
+  delete: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
 }));
@@ -15,16 +17,20 @@ vi.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { createTenant, deleteTenantRecord, finishTenantRental, saveCharge, savePayment, updateTenantProfile } from './api';
+import { createTenant, deleteTenantRecord, saveAdjustment, saveCharge, savePayment, updateTenantProfile } from './api';
 import type { TenantEditForm } from '../../types';
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.rpc.mockResolvedValue({ error: null });
-  mocks.eq.mockResolvedValue({ error: null });
+  // Chainable: every .eq() returns another .eq() plus a clean error,
+  // mirroring the supabase query builder used by the api module.
+  mocks.eq.mockReturnValue({ eq: mocks.eq, error: null });
   mocks.update.mockReturnValue({ eq: mocks.eq });
+  mocks.insert.mockResolvedValue({ error: null });
+  mocks.delete.mockReturnValue({ eq: mocks.eq });
   mocks.select.mockResolvedValue({ data: [], error: null });
-  mocks.from.mockReturnValue({ update: mocks.update, select: mocks.select });
+  mocks.from.mockReturnValue({ update: mocks.update, select: mocks.select, insert: mocks.insert, delete: mocks.delete });
 });
 
 describe('atomic tenant workflows', () => {
@@ -127,13 +133,82 @@ describe('atomic tenant workflows', () => {
     });
   });
 
-  it('finishes a rental with the reviewed date, amount and reason', async () => {
-    await finishTenantRental('tenant-1', '2026-07-24', 200, 'Велосипед возвращён');
-    expect(mocks.rpc).toHaveBeenCalledWith('finish_tenant_rental', {
-      p_tenant_id: 'tenant-1',
-      p_end_date: '2026-07-24',
-      p_final_amount: 200,
-      p_reason: 'Велосипед возвращён',
-    });
+  it('scopes payment deletes to the owning tenant', async () => {
+    const secondEq = vi.fn().mockResolvedValue({ error: null });
+    const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
+    mocks.from.mockReturnValueOnce({ delete: vi.fn().mockReturnValue({ eq: firstEq }) });
+
+    await deleteTenantRecord({ type: 'payment', id: 'payment-1' }, 'tenant-1');
+
+    expect(mocks.from).toHaveBeenCalledWith('payments');
+    expect(firstEq).toHaveBeenCalledWith('id', 'payment-1');
+    expect(secondEq).toHaveBeenCalledWith('tenant_id', 'tenant-1');
   });
+
+  it('inserts a new adjustment with the tenant attached', async () => {
+    await saveAdjustment('tenant-1', null, {
+      direction: 'charge',
+      amount: 50,
+      balance_override: null,
+      adjustment_date: '2026-07-27',
+      comment: '',
+    });
+
+    expect(mocks.from).toHaveBeenCalledWith('tenant_payment_adjustments');
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({
+      tenant_id: 'tenant-1',
+      amount: 50,
+    }));
+  });
+
+  it('updates an existing adjustment by id', async () => {
+    await saveAdjustment('tenant-1', { id: 'adj-1' } as never, {
+      direction: 'credit',
+      amount: 20,
+      balance_override: null,
+      adjustment_date: '2026-07-27',
+      comment: 'Скидка',
+    });
+
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ amount: 20 }));
+    expect(mocks.eq).toHaveBeenCalledWith('id', 'adj-1');
+  });
+
+  it('rejects adjustment edits without an id', async () => {
+    await expect(saveAdjustment('tenant-1', {} as never, {
+      direction: 'charge',
+      amount: 20,
+      balance_override: null,
+      adjustment_date: '2026-07-27',
+      comment: '',
+    })).rejects.toThrow('Adjustment id is required');
+  });
+
+  it('scopes payment edits to the owning tenant', async () => {
+    await savePayment('tenant-1', { id: 'payment-1' } as never, 300, '2026-07-27', '');
+
+    expect(mocks.from).toHaveBeenCalledWith('payments');
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ amount: 300 }));
+    expect(mocks.eq).toHaveBeenCalledWith('id', 'payment-1');
+    expect(mocks.eq).toHaveBeenCalledWith('tenant_id', 'tenant-1');
+  });
+
+  it('de-duplicates slugs against existing tenants', async () => {
+    mocks.select.mockResolvedValueOnce({ data: [{ slug: 'ivan' }, { slug: 'ivan-2' }], error: null });
+
+    await createTenant({
+      name: 'Иван',
+      slug: 'Ivan',
+      bike_id: 'bike-1',
+      weekly_payment: '300',
+      payment_day: '1',
+      next_payment_date: '2026-07-27',
+      deposit: '0',
+    });
+
+    expect(mocks.rpc).toHaveBeenCalledWith('create_tenant_with_rental', expect.objectContaining({
+      p_slug: 'ivan-3',
+    }));
+  });
+
 });

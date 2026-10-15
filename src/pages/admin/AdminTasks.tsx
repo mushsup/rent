@@ -7,8 +7,9 @@ import { useBikeTasks, useDeleteBikeTask, usePushBikeTask, useSaveBikeTask, useT
 import { formatBikeLabel, formatDate } from '../../shared/lib/format';
 import { BIKE_TASK_PRIORITY_LABELS as priorityLabels, BIKE_TASK_STATUS_LABELS as statusLabels } from '../../features/tasks/status';
 import { queryKeys } from '../../shared/lib/queryKeys';
-import { Badge, Button, Card, ConfirmDialog, Dialog, EmptyState, ErrorState, IconButton, Input, LoadingState, PageHeader, Select, Textarea } from '../../shared/ui';
+import { Badge, Button, Card, ConfirmDialog, Dialog, EmptyState, ErrorState, IconButton, Input, LoadingState, PageHeader, Select, StatusBadge, Textarea } from '../../shared/ui';
 import type { Bike, BikeTask, BikeTaskPriority, BikeTaskStatus } from '../../types';
+import { DateInput } from '../../shared/ui/DateInput';
 
 export default function AdminTasks() {
   const [statusFilter, setStatusFilter] = useState<'all' | BikeTaskStatus>('all');
@@ -73,13 +74,13 @@ export default function AdminTasks() {
 }
 
 function TaskRow({ task, toggling, syncing, onToggle, onEdit, onDelete, onSync }: { task: BikeTask; toggling: boolean; syncing: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; onSync: () => void }) {
-  const statusColor = task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+  const statusTone = task.status === 'done' ? 'lime' : task.status === 'in_progress' ? 'slate' : 'amber';
   return <article className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
     <div className="flex min-w-0 items-start gap-3">
       <input type="checkbox" checked={task.status === 'done'} disabled={toggling} onChange={onToggle} aria-label={`${task.status === 'done' ? 'Открыть' : 'Завершить'} задачу: ${task.title}`} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-lime-600 focus-visible:ring-2 focus-visible:ring-lime-500" />
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-slate-900 dark:text-white">{task.title}</h2><Badge className={statusColor}>{statusLabels[task.status]}</Badge><span className="text-xs font-medium text-slate-500 dark:text-slate-400">Приоритет: {priorityLabels[task.priority]}</span></div>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm"><span className={task.bike ? 'text-lime-800 dark:text-lime-400' : 'text-orange-700 dark:text-orange-400'}>{task.bike ? formatBikeLabel(task.bike) : 'Велосипед не выбран'}</span>{task.source === 'google_tasks' && <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Google Tasks</Badge>}</div>
+        <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-slate-900 dark:text-white">{task.title}</h2><StatusBadge tone={statusTone}>{statusLabels[task.status]}</StatusBadge><span className="text-xs font-medium text-slate-500 dark:text-slate-400">Приоритет: {priorityLabels[task.priority]}</span></div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm"><span className={task.bike ? 'text-lime-800 dark:text-lime-400' : 'text-orange-700 dark:text-orange-400'}>{task.bike ? formatBikeLabel(task.bike) : 'Велосипед не выбран'}</span>{task.source === 'google_tasks' && <Badge className="bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Google Tasks</Badge>}</div>
         {task.description && <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{task.description}</p>}
         {task.due_date && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Срок: {formatDate(task.due_date)}</p>}
       </div>
@@ -112,7 +113,7 @@ function TaskForm({ task, bikes, onClose }: { task: BikeTask | null; bikes: Bike
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Статус<Select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as BikeTaskStatus })} className="mt-1">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Приоритет<Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as BikeTaskPriority })} className="mt-1">{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
-      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Срок<Input type="date" value={form.due_date} onChange={(event) => setForm({ ...form, due_date: event.target.value })} className="mt-1" /></label>
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Срок<DateInput value={form.due_date} onChange={(value) => setForm({ ...form, due_date: value })} className="mt-1 block w-full" /></label>
     </div>
     <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="secondary" onClick={onClose}>Отмена</Button><Button disabled={saveTask.isPending} type="submit">{saveTask.isPending ? 'Сохранение...' : 'Сохранить'}</Button></div>
   </form>;

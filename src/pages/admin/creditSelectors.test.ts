@@ -33,4 +33,25 @@ describe('credit selectors', () => {
         expect(points.map(point => point.date)).toEqual(['2026-01-01', '2026-02-01', '2026-03-01']);
         expect(points.map(point => point.debtAmount)).toEqual([0, 1000, 850]);
     });
+
+    it('returns no points without credits', () => {
+        expect(buildCreditDebtChartData([], transactions, new Date('2026-03-15'))).toEqual([]);
+    });
+
+    it('grows an interest-bearing chart month over month', () => {
+        const loan = { ...credit, type: 'interest', interest_rate: 36.5 } as Credit;
+        const points = buildCreditDebtChartData([loan], [], new Date('2026-03-15'));
+
+        expect(points.map(point => point.debtAmount)).toEqual([0, expect.any(Number), expect.any(Number)]);
+        expect(points[2].debtAmount).toBeGreaterThan(points[1].debtAmount);
+        expect(points[1].debtAmount).toBeGreaterThan(1000);
+    });
+
+    it('ignores transactions of other credits', () => {
+        const foreign: CreditTransaction[] = [
+            ...transactions,
+            { id: 'foreign', credit_id: 'credit-9', type: 'payment', amount: 5000, transaction_date: '2026-02-10' },
+        ];
+        expect(getCreditDebt(credit, foreign, new Date('2026-03-15'))).toBe(850);
+    });
 });

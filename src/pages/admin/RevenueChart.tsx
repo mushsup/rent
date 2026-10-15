@@ -1,4 +1,4 @@
-import TrendChart from '../../components/TrendChart';
+import TrendChart, { type TrendSeries } from '../../components/TrendChart';
 
 type ChartPoint = {
     date: string;
@@ -7,12 +7,12 @@ type ChartPoint = {
     amount: number;
 };
 
-type Props = { data: ChartPoint[] };
+type Props = { series: Array<{ key: string; label: string; data: ChartPoint[]; color: string; forecastLast?: boolean }> };
 
-export default function RevenueChart({ data }: Props) {
+export default function RevenueChart({ series }: Props) {
     return (
         <TrendChart
-            data={data.map((point) => ({ label: point.label, value: point.amount, detail: `${point.fullLabel}: ${point.amount.toLocaleString('ru-RU')} zł` }))}
+            series={series.map((item): TrendSeries => ({ ...item, data: item.data.map((point) => ({ label: point.label, value: point.amount, detail: `${point.fullLabel}: ${point.amount.toLocaleString('ru-RU')} zł` })) }))}
             valueFormatter={(value) => `${value.toLocaleString('ru-RU')} zł`}
             ariaLabel="График дохода"
         />

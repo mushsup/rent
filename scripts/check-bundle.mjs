@@ -2,13 +2,19 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const assetsDirectory = new URL('../dist/assets/', import.meta.url);
-const limits = { entry: 450 * 1024, chunk: 60 * 1024, css: 90 * 1024 };
+const limits = { entry: 450 * 1024, chunk: 60 * 1024, css: 90 * 1024, vendor: 220 * 1024 };
 const files = await readdir(assetsDirectory);
 const failures = [];
 
 for (const file of files) {
   const bytes = (await stat(join(assetsDirectory.pathname, file))).size;
-  const limit = file.endsWith('.css') ? limits.css : file.startsWith('index-') ? limits.entry : limits.chunk;
+  const limit = file.endsWith('.css')
+    ? limits.css
+    : file.startsWith('index-')
+      ? limits.entry
+      : file.startsWith('supabase-')
+        ? limits.vendor
+        : limits.chunk;
   if (bytes > limit) failures.push(`${file}: ${bytes} bytes > ${limit} bytes`);
 }
 

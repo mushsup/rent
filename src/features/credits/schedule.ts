@@ -1,4 +1,4 @@
-import { addDays, format, isAfter, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { addDays, format, isAfter, isBefore, isSameDay, isValid, parseISO, startOfDay } from 'date-fns';
 import { formatRussianDate } from '../../utils/russianDate';
 import type { Credit, CreditTransaction } from '../../types';
 
@@ -11,17 +11,21 @@ export interface CreditScheduleEntry {
 }
 
 export function generateCreditSchedule(credit: Credit, transactions: CreditTransaction[], today = new Date()): CreditScheduleEntry[] {
+    // Same contract as calculateCreditDebt: corrupt dates yield an empty
+    // schedule, never an exception or an infinite day-by-day loop.
+    if (!credit?.start_date || !isValid(parseISO(credit.start_date))) return [];
     const startDate = startOfDay(parseISO(credit.start_date));
     const initialAmount = Number(credit.amount) || 0;
     const interestRate = (Number(credit.interest_rate) || 0) / 100;
     const currentDateLimit = startOfDay(today);
     const sortedTransactions = transactions
         .filter((transaction) => transaction.credit_id === credit.id)
+        .filter((transaction) => transaction?.transaction_date && isValid(parseISO(transaction.transaction_date)))
         .map((transaction) => ({ ...transaction, date: startOfDay(parseISO(transaction.transaction_date)) }))
         .sort((left, right) => left.date.getTime() - right.date.getTime());
 
     const schedule: CreditScheduleEntry[] = [{
-        date: format(startDate, 'dd.MM.yyyy'),
+        date: format(startDate, 'dd.MM.yy'),
         action: 'Начало кредита',
         amount: initialAmount,
         graphLabel: formatRussianDate(startDate, 'MMM yyyy')
@@ -40,7 +44,7 @@ export function generateCreditSchedule(credit: Credit, transactions: CreditTrans
             balance += transaction.type === 'payment' ? -Number(transaction.amount) : Number(transaction.amount);
             balance = Math.max(0, balance);
             schedule.push({
-                date: format(currentDate, 'dd.MM.yyyy'),
+                date: format(currentDate, 'dd.MM.yy'),
                 action: transaction.type === 'payment' ? 'Частичное погашение' : 'Добор кредита',
                 amount: balance,
                 graphLabel: formatRussianDate(currentDate, 'MMM yyyy'),
@@ -50,7 +54,7 @@ export function generateCreditSchedule(credit: Credit, transactions: CreditTrans
         }
 
         if (!isBefore(currentDate, currentDateLimit)) break;
-        if (credit.type === 'interest' && balance > 0) balance += (balance * interestRate) / 365;
+        if (credit.type === 'interest' && balance > 0) balance = Math.round((balance + (balance * interestRate) / 365) * 100) / 100;
         currentDate = addDays(currentDate, 1);
     }
 

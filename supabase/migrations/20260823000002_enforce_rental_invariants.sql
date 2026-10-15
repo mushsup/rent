@@ -59,6 +59,7 @@ BEGIN
     WHERE bike_id = p_bike_id
     FOR UPDATE;
 
+    -- If bike is assigned to a tenant, it must be in_rent status
     IF assigned_tenant_id IS NOT NULL AND p_status <> 'in_rent' THEN
         RAISE EXCEPTION 'Finish or reassign the rental before changing this bike status';
     END IF;

@@ -3,14 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit2, Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { deleteBike, fetchBikeTenants, fetchInventory, saveBike } from '../../features/bikes/api';
+import { deleteBike, fetchInventory, saveBike } from '../../features/bikes/api';
 import { deleteBikeTask, fetchBikeTasks, saveBikeTask } from '../../features/tasks/api';
 import { normalizeBikeStatus, type Bike, type BikeTask, type BikeTaskPriority, type BikeTaskStatus } from '../../types';
-import { ConfirmDialog } from '../../shared/ui';
+import { ConfirmDialog, EmptyState, ErrorState, LoadingState, StatusBadge } from '../../shared/ui';
+import { formatDate } from '../../shared/lib/format';
 import { queryKeys } from '../../shared/lib/queryKeys';
 import { getErrorMessage } from '../../shared/lib/errors';
 import { BIKE_STATUS_LABELS, getBikeStatusLabel } from '../../features/bikes/status';
 import { BIKE_TASK_PRIORITY_LABELS as priorities, BIKE_TASK_STATUS_LABELS as taskStatuses } from '../../features/tasks/status';
+import { DateInput } from '../../shared/ui/DateInput';
 
 export default function AdminBikeDetail() {
     const { id } = useParams();
@@ -23,13 +25,12 @@ export default function AdminBikeDetail() {
     const [deletingTask, setDeletingTask] = useState<BikeTask | null>(null);
 
     const { data: bikes = [], isLoading: bikesLoading } = useQuery<Bike[]>({ queryKey: queryKeys.bikes.all, queryFn: fetchInventory });
-    const { data: tenants = [] } = useQuery({ queryKey: queryKeys.bikes.tenants, queryFn: fetchBikeTenants });
     const { data: tasks = [], isLoading: tasksLoading, isError: tasksError } = useQuery<BikeTask[]>({ queryKey: queryKeys.tasks.byBike(id!), queryFn: () => fetchBikeTasks(id), enabled: Boolean(id) });
     const bike = bikes.find((item) => item.id === id);
-    const tenant = tenants.find((item) => item.bike_id === id);
+    const tenantName = bike?.assigned_tenant_name;
 
-    if (bikesLoading) return <div className="p-8 text-slate-600 dark:text-slate-300">Загрузка...</div>;
-    if (!bike) return <div className="space-y-4 p-8"><p className="text-red-600 dark:text-red-400">Велосипед не найден</p><Link to="/admin/bikes" className="text-lime-800 dark:text-lime-400">Вернуться к списку</Link></div>;
+    if (bikesLoading) return <LoadingState label="Загрузка велосипеда…" />;
+    if (!bike) return <div className="mx-auto max-w-5xl space-y-4 px-2 py-4 sm:px-6 sm:py-6"><EmptyState title="Велосипед не найден" action={<Link to="/bikes" className="text-sm font-medium text-lime-800 dark:text-lime-400">Вернуться к списку</Link>} /></div>;
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.bikes.all });
@@ -40,7 +41,9 @@ export default function AdminBikeDetail() {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         try {
-            await saveBike(bike.id, { model: String(form.get('model')).trim(), type: String(form.get('type')), status: normalizeBikeStatus(String(form.get('status'))) });
+            // If bike is assigned to a tenant, force status to 'in_rent' to satisfy DB invariant
+            const newStatus = tenantName ? 'in_rent' : normalizeBikeStatus(String(form.get('status')));
+            await saveBike(bike.id, { model: String(form.get('model')).trim(), type: String(form.get('type')), status: newStatus });
             toast.success('Велосипед обновлён');
             setEditing(false);
             refresh();
@@ -48,9 +51,9 @@ export default function AdminBikeDetail() {
     };
 
     const handleDeleteBike = async () => {
-        if (tenant) { toast.error(`Сначала отвяжите велосипед от арендатора ${tenant.name}`); return; }
+        if (tenantName) { toast.error(`Сначала отвяжите велосипед от арендатора ${tenantName}`); return; }
         if (!bike.id) { toast.error('У велосипеда отсутствует идентификатор'); return; }
-        try { await deleteBike(bike.id); toast.success('Велосипед удалён'); navigate('/admin/bikes'); }
+        try { await deleteBike(bike.id); toast.success('Велосипед удалён'); navigate('/bikes'); }
         catch (error) { toast.error(`Ошибка удаления: ${getErrorMessage(error)}`); }
     };
 
@@ -67,33 +70,33 @@ export default function AdminBikeDetail() {
     };
 
     return <div className="mx-auto max-w-5xl space-y-6 px-2 py-4 sm:px-6 sm:py-6">
-        <Link to="/admin/bikes" className="inline-flex items-center text-sm font-medium text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300"><ArrowLeft className="mr-1 h-4 w-4" /> Вернуться к списку</Link>
+        <Link to="/bikes" className="inline-flex items-center text-sm font-medium text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300"><ArrowLeft className="mr-1 h-4 w-4" /> Вернуться к списку</Link>
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             {!editing ? <div className="relative p-5 sm:p-6">
-                <button onClick={() => setEditing(true)} className="absolute right-5 top-5 rounded-md bg-slate-100 p-2 text-slate-500 hover:text-lime-800 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-lime-400" title="Редактировать"><Edit2 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setEditing(true)} aria-label="Редактировать велосипед" title="Редактировать" className="absolute right-5 top-5 rounded-md bg-slate-100 p-2 text-slate-500 hover:text-lime-800 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-lime-400"><Edit2 className="h-4 w-4" /></button>
                 <div className="flex flex-wrap items-center gap-3 pr-12">
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{bike.model}</h1>
                     <span className="rounded-md bg-lime-100 px-2.5 py-1 text-sm font-bold text-lime-950 dark:bg-lime-900/20 dark:text-lime-400">{bike.voice_code}</span>
                 </div>
                 <p className="mt-1 text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400">{bike.type}</p>
                 <div className="mt-6 grid grid-cols-1 gap-4 border-t border-slate-200 pt-5 sm:grid-cols-2 dark:border-slate-800">
-                    <Info label="Статус"><StatusBadge status={bike.status} /></Info>
-                    <Info label="Арендатор">{tenant?.name || 'Не назначен'}</Info>
+                    <Info label="Статус"><BikeStatusView status={bike.status} /></Info>
+                    <Info label="Арендатор">{tenantName || 'Не назначен'}</Info>
                 </div>
             </div> : <form onSubmit={handleSaveBike} className="space-y-5 p-5 sm:p-6">
                 <h1 className="text-xl font-bold text-slate-900 dark:text-white">Редактировать велосипед</h1>
                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Модель<input name="model" required defaultValue={bike.model || ''} className="mt-1 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-600 dark:text-slate-300">Тип<select name="type" defaultValue={bike.type || 'mtb'} className="mt-1 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="mtb">MTB</option><option value="fat">Fat</option></select></label><label className="text-sm font-medium text-slate-600 dark:text-slate-300">Статус<select name="status" defaultValue={bike.status || 'available'} disabled={Boolean(tenant)} className="mt-1 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="available">{BIKE_STATUS_LABELS.available}</option><option value="in_rent">{BIKE_STATUS_LABELS.in_rent}</option><option value="maintenance">{BIKE_STATUS_LABELS.maintenance}</option></select>{tenant && <span className="mt-1 block text-xs font-normal text-orange-500">Сначала отвяжите велосипед от {tenant.name}.</span>}</label></div>
-                <div className="flex justify-between border-t border-slate-200 pt-4 dark:border-slate-800"><button type="button" onClick={() => tenant ? toast.error(`Сначала отвяжите велосипед от арендатора ${tenant.name}`) : setDeleteBikeOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-red-700/50 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /> Удалить</button><div className="flex gap-2"><button type="button" onClick={() => setEditing(false)} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Отмена</button><button type="submit" className="rounded-md bg-lime-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-700">Сохранить</button></div></div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-600 dark:text-slate-300">Тип<select name="type" defaultValue={bike.type || 'mtb'} className="mt-1 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="mtb">MTB</option><option value="fat">Fat</option></select></label><label className="text-sm font-medium text-slate-600 dark:text-slate-300">Статус<select name="status" defaultValue={bike.status || 'available'} disabled={Boolean(tenantName)} className="mt-1 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="available">{BIKE_STATUS_LABELS.available}</option><option value="in_rent">{BIKE_STATUS_LABELS.in_rent}</option><option value="maintenance">{BIKE_STATUS_LABELS.maintenance}</option></select>{tenantName && <span className="mt-1 block text-xs font-normal text-orange-700 dark:text-orange-300">Сначала отвяжите велосипед от {tenantName}.</span>}</label></div>
+                <div className="flex justify-between border-t border-slate-200 pt-4 dark:border-slate-800"><button type="button" onClick={() => tenantName ? toast.error(`Сначала отвяжите велосипед от арендатора ${tenantName}`) : setDeleteBikeOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-red-700/50 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /> Удалить</button><div className="flex gap-2"><button type="button" onClick={() => setEditing(false)} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Отмена</button><button type="submit" className="rounded-md bg-lime-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-700">Сохранить</button></div></div>
             </form>}
         </section>
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800"><div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Задачи</h2><p className="text-sm text-slate-500 dark:text-slate-400">Все задачи по этому велосипеду</p></div><button onClick={() => { setEditingTask(null); setTaskFormOpen(true); }} className="inline-flex items-center gap-1.5 rounded-md bg-lime-600 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-700"><Plus className="h-4 w-4" /> Добавить</button></div>
-            {tasksError && <p className="p-5 text-sm text-red-500">Не удалось загрузить задачи.</p>}
-            {!tasksLoading && !tasksError && tasks.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Для этого велосипеда задач пока нет.</p>}
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">{tasks.map((task) => <div key={task.id} className="flex items-start justify-between gap-3 px-5 py-4"><div className="flex min-w-0 items-start gap-3"><input type="checkbox" checked={task.status === 'done'} onChange={() => toggleTask(task)} aria-label={`${task.status === 'done' ? 'Открыть' : 'Завершить'} задачу: ${task.title}`} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-lime-600" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-900 dark:text-white">{task.title}</h3><span className="text-xs text-slate-400">{taskStatuses[task.status]} · {priorities[task.priority]}</span></div>{task.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.description}</p>}{task.due_date && <p className="mt-1 text-xs text-slate-400">Срок: {new Date(`${task.due_date}T00:00:00`).toLocaleDateString('ru-RU')}</p>}</div></div><div className="flex shrink-0 gap-1"><button onClick={() => { setEditingTask(task); setTaskFormOpen(true); }} className="rounded p-2 text-slate-400 hover:bg-slate-100 hover:text-lime-600 dark:hover:bg-slate-800" title="Редактировать"><Edit2 className="h-4 w-4" /></button><button onClick={() => setDeletingTask(task)} className="rounded p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30" title="Удалить"><Trash2 className="h-4 w-4" /></button></div></div>)}</div>
+            {tasksError && <ErrorState message="Не удалось загрузить задачи." retry={() => { void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.byBike(id!) }); }} />}
+            {!tasksLoading && !tasksError && tasks.length === 0 && <EmptyState title="Для этого велосипеда задач пока нет" action={<button type="button" onClick={() => { setEditingTask(null); setTaskFormOpen(true); }} className="rounded-md bg-lime-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-400">Добавить задачу</button>} />}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">{tasks.map((task) => <div key={task.id} className="flex items-start justify-between gap-3 px-5 py-4"><div className="flex min-w-0 items-start gap-3"><input type="checkbox" checked={task.status === 'done'} onChange={() => toggleTask(task)} aria-label={`${task.status === 'done' ? 'Открыть' : 'Завершить'} задачу: ${task.title}`} className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-lime-600" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-900 dark:text-white">{task.title}</h3><span className="text-xs text-slate-400">{taskStatuses[task.status]} · {priorities[task.priority]}</span></div>{task.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.description}</p>}{task.due_date && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Срок: {formatDate(task.due_date)}</p>}</div></div><div className="flex shrink-0 gap-1"><button type="button" onClick={() => { setEditingTask(task); setTaskFormOpen(true); }} aria-label={`Редактировать задачу: ${task.title}`} title="Редактировать" className="rounded p-2 text-slate-400 hover:bg-slate-100 hover:text-lime-800 dark:hover:bg-slate-800"><Edit2 className="h-4 w-4" /></button><button type="button" onClick={() => setDeletingTask(task)} aria-label={`Удалить задачу: ${task.title}`} title="Удалить" className="rounded p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4" /></button></div></div>)}</div>
         </section>
 
         {taskFormOpen && <BikeTaskForm task={editingTask} bike={bike} onClose={() => setTaskFormOpen(false)} onSuccess={() => { setTaskFormOpen(false); refresh(); }} />}
@@ -103,11 +106,14 @@ export default function AdminBikeDetail() {
 }
 
 function Info({ label, children }: { label: string; children: React.ReactNode }) { return <div className="rounded-lg bg-slate-100 p-3 dark:bg-slate-800/60"><span className="mb-1 block text-xs text-slate-400">{label}</span><span className="font-semibold text-slate-900 dark:text-white">{children}</span></div>; }
-function StatusBadge({ status }: { status: Bike['status'] }) { return <span className="rounded-md bg-slate-200 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">{getBikeStatusLabel(status)}</span>; }
+function BikeStatusView({ status }: { status: Bike['status'] }) {
+    const tone = status === 'available' ? 'lime' : status === 'maintenance' ? 'amber' : 'slate';
+    return <StatusBadge tone={tone}>{getBikeStatusLabel(status)}</StatusBadge>;
+}
 
 function BikeTaskForm({ task, bike, onClose, onSuccess }: { task: BikeTask | null; bike: Bike; onClose: () => void; onSuccess: () => void }) {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({ title: task?.title || '', description: task?.description || '', status: task?.status || 'open' as BikeTaskStatus, priority: task?.priority || 'normal' as BikeTaskPriority, due_date: task?.due_date || '' });
     const submit = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!form.title.trim()) { toast.error('Укажите название задачи'); return; } if (!bike.id) { toast.error('У велосипеда отсутствует идентификатор'); return; } setSaving(true); try { await saveBikeTask(task?.id, { bike_id: bike.id, ...form, title: form.title.trim(), due_date: form.due_date || null }); toast.success(task ? 'Задача обновлена' : 'Задача создана'); onSuccess(); } catch (error) { toast.error(`Ошибка сохранения: ${getErrorMessage(error)}`); } finally { setSaving(false); } };
-    return <div className="border-t border-slate-200 p-5 dark:border-slate-800"><form onSubmit={submit} className="space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-white">{task ? 'Редактировать задачу' : 'Новая задача'}</h3><button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"><X className="h-5 w-5" /></button></div><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Название задачи" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Описание" className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as BikeTaskStatus })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">{Object.entries(taskStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as BikeTaskPriority })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">{Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></div><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Отмена</button><button disabled={saving} type="submit" className="rounded-md bg-lime-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-700 disabled:opacity-60">{saving ? 'Сохранение...' : 'Сохранить'}</button></div></form></div>;
+    return <div className="border-t border-slate-200 p-5 dark:border-slate-800"><form onSubmit={submit} className="space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-white">{task ? 'Редактировать задачу' : 'Новая задача'}</h3><button type="button" onClick={onClose} aria-label="Закрыть форму задачи" className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"><X className="h-5 w-5" /></button></div><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Название задачи" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Описание" className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as BikeTaskStatus })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">{Object.entries(taskStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as BikeTaskPriority })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">{Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><DateInput value={form.due_date} aria-label="Срок задачи" onChange={(value) => setForm({ ...form, due_date: value })} className="rounded-md border border-slate-200 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></div><div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Отмена</button><button disabled={saving} type="submit" className="rounded-md bg-lime-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-700 disabled:opacity-60">{saving ? 'Сохранение...' : 'Сохранить'}</button></div></form></div>;
 }

@@ -17,6 +17,7 @@ export interface PaymentTerm {
 }
 
 export type BikeStatus = 'available' | 'in_rent' | 'maintenance';
+export type BatteryStatus = 'available' | 'in_rent' | 'maintenance';
 export type PaymentChargeStatus = 'open' | 'waived';
 export type PaymentAdjustmentDirection = 'charge' | 'credit';
 export type CreditType = 'interest' | 'no_interest';
@@ -50,7 +51,8 @@ export interface PaymentCharge {
   amount: number | string;
   comment?: string | null;
   status?: PaymentChargeStatus | null;
-  is_automatic?: boolean;
+    is_automatic?: boolean;
+    approved_at?: string | null;
   breakdown?: RentalPeriodSegment[];
   created_at?: string | null;
 }
@@ -62,6 +64,7 @@ export interface PaymentAdjustment {
   adjustment_date: string;
   comment?: string | null;
   source_event_id?: string | null;
+  balance_override?: number | string | null;
   created_at?: string | null;
 }
 
@@ -112,6 +115,13 @@ export interface Bike {
   price?: number | string | null;
   voice_code?: string | null;
   assigned_tenant_name?: string | null;
+}
+
+export interface Battery {
+  id?: string;
+  code: string;
+  status?: BatteryStatus | null;
+  created_at?: string | null;
 }
 
 export type BikeTaskStatus = 'open' | 'in_progress' | 'done';
@@ -223,7 +233,8 @@ export type AdjustmentLedgerEvent = {
   comment: string;
   createdAt: string | null;
   adjustmentId?: string;
-  sortOrder: 1;
+  balanceOverride?: number | null;
+  sortOrder: 1 | 3;
 };
 
 export type PaymentLedgerEvent = {
@@ -261,6 +272,7 @@ export interface LedgerEntry {
   comment: string;
   charge?: PaymentCharge;
   adjustmentId?: string;
+  balanceOverride?: number | null;
   paymentId?: string;
   rentalEvent?: RentalEvent;
   allocatedAmount: number;

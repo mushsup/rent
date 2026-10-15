@@ -1,4 +1,4 @@
-import { addDays, format, parseISO, subDays } from 'date-fns';
+import { addDays, format, isValid, parseISO, subDays } from 'date-fns';
 import { DEFAULT_PAYMENT_DAY, getPaymentDay, getScheduledPaymentDate } from './paymentSchedule';
 import type { AdjustmentLedgerEvent, ExpectedLedgerEvent, LedgerEntry, LedgerEvent, Payment, PaymentCharge, PaymentLedger, PaymentLedgerEvent, RentalLedgerEvent, Tenant } from '../types';
 
@@ -17,8 +17,11 @@ function compareDates(left: string | Date | number, right: string | Date | numbe
 }
 
 function compareTimestamps(left: string | Date | number, right: string | Date | number): number {
-    return new Date(left).getTime() - new Date(right).getTime();
+    return toDate(left).getTime() - toDate(right).getTime();
 }
+
+/** Amounts below half a grosz are rounding dust, not real debt. */
+const EPS = 0.005;
 
 function roundMoney(value: number): number {
     return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
@@ -49,13 +52,16 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
     }
 
     const hasActiveRental = Boolean(tenant.bike_id) && !tenant.is_archived;
-    const paymentDay = Number(tenant.payment_day)
-        || getPaymentDay(tenant.next_payment_date || referenceDate)
-        || DEFAULT_PAYMENT_DAY;
+    // payment_day is 1..7 (ISO weekday). Anything else is corrupt data:
+    // fall back to the weekday of the next payment date, then the default.
+    const rawPaymentDay = Number(tenant.payment_day);
+    const paymentDay = rawPaymentDay >= 1 && rawPaymentDay <= 7
+        ? rawPaymentDay
+        : getPaymentDay(tenant.next_payment_date || referenceDate) || DEFAULT_PAYMENT_DAY;
     const nextPaymentKey = tenant.next_payment_date
         ? toDateKey(tenant.next_payment_date)
         : getScheduledPaymentDate(referenceDate, paymentDay);
-    const actualPayments = payments.filter(payment => payment?.payment_date);
+    const actualPayments = payments.filter(payment => payment?.payment_date && isValid(parseISO(payment.payment_date)));
     const persistedCharges = (tenant.payment_charges || []).filter(charge => charge?.due_date);
     const earliestPayment = actualPayments.reduce<string | null>((earliest, payment) => (
         !earliest || compareDates(payment.payment_date, earliest) < 0 ? payment.payment_date : earliest
@@ -101,7 +107,16 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
         effective_to: null
     }];
     const adjustments = (tenant.payment_adjustments || []).filter(adjustment => adjustment?.adjustment_date);
-    const chargeByDate = new Map(persistedCharges.map(charge => [toDateKey(charge.due_date), charge]));
+    // Several persisted charges may share one due date (manual charges on top
+    // of the automatic one). A Map keyed by date would silently keep only the
+    // last one, so group them instead: one ledger event per charge.
+    const chargesByDate = new Map<string, PaymentCharge[]>();
+    persistedCharges.forEach(charge => {
+        const key = toDateKey(charge.due_date);
+        const group = chargesByDate.get(key);
+        if (group) group.push(charge);
+        else chargesByDate.set(key, [charge]);
+    });
     const expectedDates = new Set<string>();
     if (persistedCharges.length > 0) {
         persistedCharges.forEach(charge => expectedDates.add(toDateKey(charge.due_date)));
@@ -138,16 +153,24 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
             createdAt: event.created_at || null,
             sortOrder: -1,
         })),
-        ...visibleExpectedDates.map<ExpectedLedgerEvent>(date => ({ type: 'expected', date, charge: chargeByDate.get(date), sortOrder: 0 })),
+        ...visibleExpectedDates.flatMap<ExpectedLedgerEvent>(date => {
+            const charges = chargesByDate.get(date);
+            if (!charges || charges.length === 0) return [{ type: 'expected', date, charge: undefined, sortOrder: 0 }];
+            return charges.map(charge => ({ type: 'expected', date, charge, sortOrder: 0 }));
+        }),
         ...adjustments.map<AdjustmentLedgerEvent>(adjustment => ({
             type: 'adjustment',
             date: toDateKey(adjustment.adjustment_date),
             amount: Number(adjustment.amount) || 0,
             direction: adjustment.direction,
+            balanceOverride: adjustment.balance_override == null ? null : Number(adjustment.balance_override),
             comment: adjustment.comment || '',
             createdAt: adjustment.created_at || null,
             adjustmentId: adjustment.id,
-            sortOrder: 1
+            // A dated checkpoint records the reconciled end-of-day balance.
+            // Regular adjustments stay before payments; a checkpoint resets
+            // the ledger after all movements recorded for that calendar day.
+            sortOrder: adjustment.balance_override != null ? 3 : 1
         })),
         ...actualPayments.map<PaymentLedgerEvent>(payment => ({
             type: 'payment',
@@ -173,15 +196,16 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
             : null;
         const weeklyPayment = term?.weekly_payment ?? 0;
         const discountAmount = term?.discount_amount ?? 0;
+        const hasBalanceOverride = event.type === 'adjustment' && event.balanceOverride != null;
         const amount = event.type === 'expected'
                 ? (event.charge
-                ? event.charge.status === 'waived' ? 0 : event.date === nextPaymentKey
-                    ? Number(event.charge.amount) || 0
-                    : Number(event.charge.amount) || 0
+                ? event.charge.status === 'waived' ? 0 : Number(event.charge.amount) || 0
                 : event.date === nextPaymentKey
                     ? Math.max(expectedOverride != null ? expectedOverride : weeklyPayment - discountAmount, 0)
                     : Math.max(weeklyPayment - discountAmount, 0))
-            : event.amount;
+            : hasBalanceOverride
+                ? Math.abs(roundMoney(event.balanceOverride! - balance))
+                : event.amount;
         const createdAt = 'createdAt' in event ? event.createdAt : null;
         const wasRecordedAfterLedgerStarted = createdAt
             && earliestCharge?.created_at
@@ -190,13 +214,18 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
             && !wasRecordedAfterLedgerStarted;
         const signedAmount = isBeforeAccountingStart
             ? 0
+            : hasBalanceOverride
+                ? roundMoney(event.balanceOverride! - balance)
             : event.type === 'expected'
                 ? amount
                 : event.type === 'adjustment'
                     ? (event.direction === 'charge' ? amount : -amount)
                     : event.type === 'payment' ? -amount : 0;
-        balance = roundMoney(balance + signedAmount);
-        if (compareDates(event.date, referenceKey) <= 0) balanceAtReference = balance;
+        const isAtOrBeforeReference = compareDates(event.date, referenceKey) <= 0;
+        if (isAtOrBeforeReference) {
+            balance = hasBalanceOverride ? roundMoney(event.balanceOverride!) : roundMoney(balance + signedAmount);
+            balanceAtReference = balance;
+        }
 
         return {
             ...event,
@@ -207,11 +236,14 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
             dateKey: event.date,
             isCurrentExpected: event.type === 'expected' && event.date === nextPaymentKey,
             isAutomatic: event.type === 'expected' && event.charge?.is_automatic === true,
-            isOverdue: event.type === 'expected' && compareDates(event.date, referenceKey) <= 0,
+            // Glossary: overdue means strictly before the reference day.
+            // Anything due exactly on the reference day is "due today".
+            isOverdue: event.type === 'expected' && compareDates(event.date, referenceKey) < 0,
             comment: event.type === 'expected'
                 ? (event.charge?.comment || (event.date === nextPaymentKey ? tenant.next_payment_comment || '' : ''))
                 : event.comment || '',
             rentalEvent: event.type === 'rental_event' ? event.rentalEvent : undefined,
+            balanceOverride: event.type === 'adjustment' ? event.balanceOverride : null,
             allocatedAmount: 0,
             remainingAmount: 0,
             unallocatedAmount: 0,
@@ -246,6 +278,31 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
         chargeQueue.push({ entry: openingDebtEntry, remaining: openingBalance });
     }
 
+    if (openingBalance < 0 && compareDates(referenceKey, startDate) >= 0) {
+        // A negative opening balance is a prepayment: it must offset the
+        // outstanding charges, mirroring the debt branch above.
+        const prepaid = Math.abs(openingBalance);
+        const openingCreditEntry: LedgerEntry = {
+            type: 'payment',
+            date: toDate(startDate),
+            dateKey: startDate,
+            amount: prepaid,
+            signedAmount: -prepaid,
+            balance: openingBalance,
+            isCurrentExpected: false,
+            isAutomatic: false,
+            isOverdue: false,
+            comment: 'Opening prepayment',
+            allocatedAmount: 0,
+            remainingAmount: 0,
+            unallocatedAmount: prepaid,
+            daysSincePreviousPayment: null,
+            allocations: []
+        };
+        creditQueue.push({ entry: openingCreditEntry, remaining: prepaid });
+        availableCredit = prepaid;
+    }
+
     entries.forEach(entry => {
         if (entry.type === 'payment') {
             entry.daysSincePreviousPayment = previousPaymentDate
@@ -254,7 +311,28 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
             previousPaymentDate = entry.dateKey;
         }
 
-        if (compareDates(entry.dateKey, referenceKey) > 0 || entry.signedAmount === 0) return;
+        if (compareDates(entry.dateKey, referenceKey) > 0) return;
+
+        if (entry.type === 'adjustment' && entry.balanceOverride != null) {
+            chargeQueue.length = 0;
+            creditQueue.length = 0;
+            availableCredit = 0;
+
+            if (entry.balanceOverride > 0) {
+                entry.remainingAmount = roundMoney(entry.balanceOverride);
+                chargeQueue.push({ entry, remaining: entry.remainingAmount });
+            } else if (entry.balanceOverride < 0) {
+                entry.unallocatedAmount = roundMoney(Math.abs(entry.balanceOverride));
+                availableCredit = entry.unallocatedAmount;
+                creditQueue.push({ entry, remaining: entry.unallocatedAmount });
+            }
+            return;
+        }
+
+        if (entry.signedAmount !== 0 && Math.abs(entry.signedAmount) < EPS) {
+            entry.signedAmount = 0;
+        }
+        if (entry.signedAmount === 0) return;
 
         if (entry.signedAmount > 0) {
             let remaining = roundMoney(entry.signedAmount);
@@ -274,7 +352,7 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
                 entry.allocatedAmount = roundMoney(entry.allocatedAmount + appliedAmount);
                 availableCredit = roundMoney(availableCredit - appliedAmount);
                 remaining = roundMoney(remaining - appliedAmount);
-                if (oldestCredit.remaining <= 0) creditQueue.shift();
+                if (oldestCredit.remaining < EPS) { oldestCredit.remaining = 0; oldestCredit.entry.remainingAmount = 0; oldestCredit.entry.unallocatedAmount = 0; creditQueue.shift(); }
             }
             entry.remainingAmount = remaining;
 
@@ -299,9 +377,9 @@ export function buildPaymentLedger(tenant: Tenant | null | undefined, payments: 
                 periodEnd: oldestCharge.entry.charge?.period_end || null,
                 amount: appliedAmount
             });
-            creditAmount = roundMoney(creditAmount - appliedAmount);
+                creditAmount = roundMoney(creditAmount - appliedAmount);
 
-            if (oldestCharge.remaining <= 0) chargeQueue.shift();
+            if (oldestCharge.remaining < EPS) { oldestCharge.remaining = 0; oldestCharge.entry.remainingAmount = 0; chargeQueue.shift(); }
         }
         availableCredit = roundMoney(availableCredit + creditAmount);
         entry.unallocatedAmount = creditAmount;

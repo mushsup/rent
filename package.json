@@ -17,12 +17,12 @@
     "check:remote-schema": "node scripts/check-remote-schema.mjs",
     "preview": "vite preview",
     "db:login": "supabase login",
-    "db:link:beta": "supabase link --project-ref geeyefhmccqbtvlfesba",
-    "db:pull:beta": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db pull",
+    "db:link": "supabase link --project-ref geeyefhmccqbtvlfesba",
+    "db:pull": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db pull",
     "db:migrations": "supabase migration list",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --linked > src/database.types.ts",
-    "db:push:beta": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db push"
+    "db:push": "supabase link --project-ref geeyefhmccqbtvlfesba && supabase db push"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

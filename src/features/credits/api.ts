@@ -3,8 +3,8 @@ import { normalizeCreditTransactionType, normalizeCreditType, type Credit, type 
 
 export async function fetchCredits(): Promise<{ credits: Credit[]; transactions: CreditTransaction[] }> {
     const [{ data: credits, error: creditsError }, { data: transactions, error: transactionsError }] = await Promise.all([
-        supabase.from('credits').select('*').order('created_at', { ascending: false }),
-        supabase.from('credit_transactions').select('*').order('transaction_date', { ascending: true })
+        supabase.from('credits').select('id, name, start_date, type, amount, interest_rate, payment_day, payment_amount').order('created_at', { ascending: false }),
+        supabase.from('credit_transactions').select('id, credit_id, type, amount, transaction_date').order('transaction_date', { ascending: true })
     ]);
 
     if (creditsError) throw creditsError;

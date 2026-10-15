@@ -1,17 +1,17 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Layout from './components/Layout';
+import { EmptyState } from './shared/ui';
 
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const Layout = lazy(() => import('./components/Layout'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminTenantDetail = lazy(() => import('./pages/admin/AdminTenantDetail'));
 const AdminBikes = lazy(() => import('./pages/admin/AdminBikes'));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments'));
+const AdminPaymentApprovals = lazy(() => import('./pages/admin/AdminPaymentApprovals'));
 const AdminTasks = lazy(() => import('./pages/admin/AdminTasks'));
 const AdminBikeDetail = lazy(() => import('./pages/admin/AdminBikeDetail'));
 const PaymentHistory = lazy(() => import('./pages/admin/PaymentHistory'));
-const Home = lazy(() => import('./pages/Home'));
 
 function App() {
   return (
@@ -24,28 +24,27 @@ function App() {
           borderRadius: '6px',
         },
       }} />
-      <Suspense fallback={<div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-slate-950 dark:text-white">Загрузка...</div>}>
+      <Suspense fallback={<div role="status" aria-label="Загрузка приложения" className="min-h-screen bg-slate-100 p-4 dark:bg-slate-950 sm:p-6"><div className="mx-auto max-w-7xl animate-pulse"><div className="h-14 rounded-lg bg-white/70 dark:bg-slate-900/70" /><div className="mt-6 h-10 w-48 rounded-lg bg-white/70 dark:bg-slate-900/70" /><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="h-24 rounded-lg bg-white/70 dark:bg-slate-900/70" /><div className="h-24 rounded-lg bg-white/70 dark:bg-slate-900/70" /><div className="h-24 rounded-lg bg-white/70 dark:bg-slate-900/70" /><div className="h-24 rounded-lg bg-white/70 dark:bg-slate-900/70" /></div></div></div>}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-
-          <Route path="/history/:slug/statement" element={<PaymentHistory variant="statement" publicMode />} />
-          <Route path="/history/:slug/weeks" element={<PaymentHistory variant="weeks" publicMode />} />
-
-          {/* Защищенные роуты админки */}
-          <Route path="/admin" element={<Layout />}>
+          {/* Админка — корень сайта. Без сессии Layout показывает форму входа инлайн, без редиректов. */}
+          <Route path="/" element={<Layout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="bikes" element={<AdminBikes />} />
             <Route path="bike/:id" element={<AdminBikeDetail />} />
             <Route path="payments" element={<AdminPayments />} />
+            <Route path="payments/today" element={<AdminPaymentApprovals />} />
             <Route path="tasks" element={<AdminTasks />} />
             <Route path="tenant/:id" element={<AdminTenantDetail />} />
             <Route path="tenant/:id/history/statement" element={<PaymentHistory variant="statement" />} />
             <Route path="tenant/:id/history/weeks" element={<PaymentHistory variant="weeks" />} />
           </Route>
 
-          {/* Публичный роут арендатора: основная страница теперь использует недельную историю */}
-          <Route path="/:slug" element={<PaymentHistory variant="weeks" publicMode />} />
+          {/* Публичные страницы арендатора */}
+          <Route path="/history/:slug/statement" element={<PaymentHistory variant="statement" publicMode />} />
+          <Route path="/history/:slug/weeks" element={<PaymentHistory variant="weeks" publicMode />} />
+          <Route path="/:slug" element={<PaymentHistory variant="statement" publicMode />} />
+
+          <Route path="*" element={<div className="min-h-screen bg-slate-100 py-20 dark:bg-slate-950"><div className="mx-auto max-w-4xl px-4 sm:px-6"><EmptyState title="Страница не найдена" /></div></div>} />
         </Routes>
       </Suspense>
     </>

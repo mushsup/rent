@@ -44,7 +44,7 @@ function normalizeTaskSource(value: string): BikeTask['source'] {
   return value === 'google_tasks' ? value : 'site';
 }
 
-export async function saveBikeTask(id: string | undefined, input: BikeTaskInput): Promise<void> {
+export async function saveBikeTask(id: string | undefined, input: BikeTaskInput): Promise<{ syncWarning?: string }> {
   const payload = {
     ...input,
     completed_at: input.status === 'done' ? new Date().toISOString() : null,
@@ -61,12 +61,14 @@ export async function saveBikeTask(id: string | undefined, input: BikeTaskInput)
 
   if (import.meta.env.PROD && taskId) {
     const { data: pushResult, error: pushError } = await supabase.functions.invoke('google-tasks-push', { body: { taskId } });
-    if (pushError) throw pushError;
-    if (pushResult?.warning) throw new Error(`Google Tasks: ${pushResult.warning}`);
+    if (pushError) return { syncWarning: 'Задача сохранена, но не отправлена в Google Tasks' };
+    if (pushResult?.warning) return { syncWarning: `Google Tasks: ${pushResult.warning}` };
   }
+
+  return {};
 }
 
-export async function deleteBikeTask(id: string): Promise<void> {
+export async function deleteBikeTask(id: string): Promise<{ syncWarning?: string }> {
   const { error } = await supabase
     .from('bike_tasks')
     .update({ deleted_at: new Date().toISOString() })
@@ -74,9 +76,10 @@ export async function deleteBikeTask(id: string): Promise<void> {
   if (error) throw error;
   if (import.meta.env.PROD) {
     const { data: pushResult, error: pushError } = await supabase.functions.invoke('google-tasks-push', { body: { taskId: id } });
-    if (pushError) throw pushError;
-    if (pushResult?.warning) throw new Error(`Google Tasks: ${pushResult.warning}`);
+    if (pushError) return { syncWarning: 'Задача удалена на сайте, но не отправлена в Google Tasks' };
+    if (pushResult?.warning) return { syncWarning: `Google Tasks: ${pushResult.warning}` };
   }
+  return {};
 }
 
 /** Повторно отправляет существующую задачу в Google Tasks. */

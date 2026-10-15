@@ -5,7 +5,7 @@ E-Bike Rent Krakow is a browser-based rental operations dashboard for managing c
 ## Stack
 
 - React 18 with Vite 8 and TypeScript/TSX
-- React Router 7 using `HashRouter` for client-side navigation
+- React Router 7 using `BrowserRouter`: the admin lives at `/`, tenant pages at `/:slug` and `/history/...`
 - Supabase JS for authentication and direct Postgres access
 - TanStack React Query for cached admin queries and invalidation
 - Tailwind CSS 4 through `@tailwindcss/vite`
@@ -13,7 +13,7 @@ E-Bike Rent Krakow is a browser-based rental operations dashboard for managing c
 
 ## Runtime architecture
 
-The application is a single-page frontend. `src/main.tsx` creates one React Query client, wraps the app in `React.StrictMode`, and mounts a `HashRouter`. `src/App.tsx` defines the route tree and global toast configuration.
+The application is a single-page frontend. `src/main.tsx` creates one React Query client, wraps the app in `React.StrictMode`, and mounts a `BrowserRouter`. `src/App.tsx` defines the route tree and global toast configuration.
 
 ```text
 Browser
@@ -32,7 +32,7 @@ Browser
                     └── Postgres tables + Row Level Security
 ```
 
-`src/components/Layout.tsx` is the admin route guard: it loads the Supabase session, subscribes to auth changes, redirects unauthenticated users to `/admin/login`, and provides the admin navigation, logout, and dark-mode toggle.
+`src/components/Layout.tsx` is the admin route guard: it loads the Supabase session, subscribes to auth changes, renders the login form inline when there is no session (no redirects), and provides the admin navigation, logout, and dark-mode toggle.
 
 Supabase access for tenant workflows is centralized in `src/features/tenants/api.ts`. Pure financial calculations remain in `src/utils/`, while route components focus on UI state and rendering.
 
@@ -92,9 +92,9 @@ The production frontend is suitable for a free Cloudflare Pages static deploymen
 - Build command: `npm run build`
 - Publish directory: `dist`
 - Environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-- Current URL base: `/rent/`; change `vite.config.js` to `/` when deploying at a domain root.
+- Current URL base: `/` (domain root; `vite.config.js` uses `base: '/'`).
 
-The repository includes a service worker for repeat-load caching of same-origin static assets. It never caches Supabase API responses, so tenant and payment data remain live. The generated manifest allows installation as a phone home-screen app when the site is served over HTTPS.
+The repository includes a service worker for repeat-load caching of same-origin static assets and an installable PWA manifest. Successful read results are saved in IndexedDB for up to 48 hours, so the latest dashboard can render immediately and refresh in the background. Supabase remains the source of truth; writes still require a connection and the local cache is cleared on logout.
 
 Install dependencies and start the development server:
 
@@ -108,12 +108,12 @@ npm run dev
 1. Use a current Node.js LTS release and install the dependencies with `npm install`.
 2. Create `.env` in the repository root with a Supabase project URL and anon/publishable key.
 3. Start Docker and run `npm run db:reset` to reproduce the schema locally. The migration that introduces `admin_users` promotes Auth users that already exist when it is applied; add later operators explicitly to that table.
-4. Start Vite with `npm run dev` and open the URL printed in the terminal. With the configured base path, the usual address is `http://localhost:5173/rent/`.
-5. Test the public experience at `/rent/` and a tenant link at `/rent/#/<tenant-slug>`.
-6. Test the admin flow at `/rent/#/admin/login` using the Supabase authenticated user. Verify the dashboard, bike inventory, payments/credits, tenant detail, payment recording, bike assignment, archive, logout, and dark-mode toggle.
+4. Start Vite with `npm run dev` and open the URL printed in the terminal, usually `http://localhost:5173/`.
+5. Test a tenant link at `/<tenant-slug>` and its `/history/<tenant-slug>/statement` page.
+6. Test the admin flow at `/` using the Supabase authenticated user (without a session the login form renders inline on the same URL). Verify the dashboard, bike inventory, payments/credits, tenant detail, payment recording, bike assignment, archive, logout, and dark-mode toggle.
 7. Before submitting changes, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run check:bundle`, and `npm run test:e2e`.
 
-Because the app uses `HashRouter`, route paths after the base path must include `#` during local testing. Changes to `.env` require restarting the Vite process.
+The app uses `BrowserRouter` with clean URLs. `netlify.toml` rewrites all paths to `/index.html` (HTTP 200, URL unchanged) so deep links and refreshes work on static hosting. Changes to `.env` require restarting the Vite process.
 
 Available scripts:
 
@@ -129,9 +129,9 @@ Available scripts:
 - `npm run check:remote-schema` — read-only check that the linked target schema has the current RPC signatures and rental invariants.
 - `npm run test:e2e` — run Playwright in desktop and mobile Chromium projects.
 - `npm run db:reset` — rebuild the local Supabase database from standard migrations.
-- `npm run db:types` — regenerate `src/database.types.ts` from the linked beta schema.
+- `npm run db:types` — regenerate `src/database.types.ts` from the linked Supabase schema.
 
-Vite is configured with `base: '/rent/'`, so deployments must serve the app under `/rent/` unless that setting and the deployment path are changed together. Because routing uses `HashRouter`, the host does not need history-fallback rewrites for client routes.
+Vite is configured with `base: '/'`, so deployments serve the app at the domain root. There are no route redirects: `/` renders the admin dashboard (login form inline until a session exists), `/:slug` and `/history/...` render tenant pages. Static routes take precedence over `/:slug`; tenant slugs in `RESERVED_SLUGS` (`src/utils/slug.ts`) can never shadow them.
 
 ## Main workflows
 
