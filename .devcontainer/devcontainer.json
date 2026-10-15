@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "rent",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install",
+  "portsAttributes": {
+    "4096": {
+      "label": "opencode serve",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "vite dev",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "forwardPorts": [4096, 5173]
+}
