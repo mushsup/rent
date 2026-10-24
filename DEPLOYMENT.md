@@ -48,7 +48,7 @@ After creating a new Auth operator, insert that user's UUID into `public.admin_u
 
 ## Verify after deployment
 
-Check the public home page, the inline login on `/admin`, the authenticated dashboard, tenant detail, payments, anonymous tenant links, and the browser console. The service worker caches only same-origin static assets; Supabase requests remain live.
+Check the inline login on `/` and the `/admin` alias, the authenticated dashboard, tenant detail, payments, anonymous tenant links, and the browser console. The service worker serves documents network-first (falling back to the cached shell offline), caches only same-origin static assets, and leaves Supabase requests live. After a deploy, reload once to pick up the new document cache version.
 
 ## Custom domain
 

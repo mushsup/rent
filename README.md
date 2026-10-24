@@ -18,14 +18,14 @@ The application is a single-page frontend. `src/main.tsx` creates one React Quer
 ```text
 Browser
 └── React SPA
-    ├── Public marketing page             /
-    ├── Public tenant page                /:slug
-    └── Authenticated admin shell         /admin/*
-        ├── Dashboard                     /admin
-        ├── Bike inventory                 /admin/bikes
-        ├── Credit/payment operations      /admin/payments
-        ├── Bike task manager              /admin/tasks
-        └── Tenant detail                  /admin/tenant/:id
+    ├── Admin shell (inline login)        /
+    │   ├── Dashboard                     /
+    │   ├── Bike inventory                 /bikes
+    │   ├── Credit/payment operations      /payments
+    │   ├── Bike task manager              /tasks
+    │   └── Tenant detail                  /tenant/:id
+    ├── Admin URL alias                   /admin/* → same paths without prefix
+    └── Public tenant pages               /:slug and /history/:slug/...
                 │
                 └── Supabase JS client
                     ├── Supabase Auth
@@ -131,7 +131,7 @@ Available scripts:
 - `npm run db:reset` — rebuild the local Supabase database from standard migrations.
 - `npm run db:types` — regenerate `src/database.types.ts` from the linked Supabase schema.
 
-Vite is configured with `base: '/'`, so deployments serve the app at the domain root. There are no route redirects: `/` renders the admin dashboard (login form inline until a session exists), `/:slug` and `/history/...` render tenant pages. Static routes take precedence over `/:slug`; tenant slugs in `RESERVED_SLUGS` (`src/utils/slug.ts`) can never shadow them.
+Vite is configured with `base: '/'`, so deployments serve the app at the domain root. `/` renders the admin dashboard (login form inline until a session exists), `/admin` and `/admin/*` are aliases that redirect to the same admin paths, and `/:slug` and `/history/...` render tenant pages. Static routes take precedence over `/:slug`; tenant slugs in `RESERVED_SLUGS` (`src/utils/slug.ts`) can never shadow them.
 
 ## Main workflows
 

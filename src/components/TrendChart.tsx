@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 
 export type TrendPoint = { label: string; value: number; detail?: string };
 export type TrendSeries = { key: string; label: string; data: TrendPoint[]; color: string; forecastLast?: boolean };
@@ -21,6 +22,7 @@ function drawPath(points: Array<{ x: number; y: number }>) {
 }
 
 export default function TrendChart({ data = [], series, accent = '#64748b', valueFormatter = String, ariaLabel }: Props) {
+  const { t } = useI18n();
   const chartSeries = series?.length ? series : [{ key: 'default', label: ariaLabel, data, color: accent }];
   const labels = chartSeries[0]?.data || [];
   const chartWidth = WIDTH - PADDING.left - PADDING.right;
@@ -55,7 +57,7 @@ export default function TrendChart({ data = [], series, accent = '#64748b', valu
       return <g key={item.key}>
         {area && <path d={area} fill="url(#trend-area-gradient)" />}
         {solid.length > 1 && <path d={drawPath(solid)} fill="none" stroke={item.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
-        {forecast.length === 2 && <path d={drawPath(forecast)} fill="none" stroke={item.color} strokeWidth="2.5" strokeDasharray="6 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0.75"><title>Текущая неделя: прогноз</title></path>}
+        {forecast.length === 2 && <path d={drawPath(forecast)} fill="none" stroke={item.color} strokeWidth="2.5" strokeDasharray="6 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0.75"><title>{t('Текущая неделя: прогноз')}</title></path>}
         {points.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r="3.5" fill={item.color} fillOpacity={item.forecastLast && index === points.length - 1 ? 0.55 : 1} stroke="var(--or-cloud)" strokeWidth="2" vectorEffect="non-scaling-stroke"><title>{point.detail || `${item.label}: ${valueFormatter(point.value)}`}</title></circle>)}
       </g>;
     })}

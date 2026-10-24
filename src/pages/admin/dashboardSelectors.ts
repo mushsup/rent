@@ -15,6 +15,7 @@ import {
 } from 'date-fns';
 import { calculateDebt, getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { formatRussianDate } from '../../utils/russianDate';
+import { getStoredLanguage, translate } from '../../i18n/translate';
 import type { Bike, Tenant } from '../../types';
 
 export type ChartPeriod = 'week' | 'month' | 'year';
@@ -28,6 +29,10 @@ export function buildTenantSummaries(tenants: Tenant[], referenceDate: Date | st
         ...tenant,
         debtSummary: calculateDebt(tenant, tenant.payments, referenceDate)
     }));
+}
+
+export function needsBikeAssignment(tenant: Tenant): boolean {
+    return !tenant.is_archived && !tenant.bike_id;
 }
 
 export function getDashboardStats(
@@ -89,7 +94,7 @@ export function filterDashboardTenants(
         referenceDate?: Date;
     }
 ) {
-    const normalizedSearch = search.toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
     const todayKey = format(referenceDate, 'yyyy-MM-dd');
     const nextSevenDaysKey = format(addDays(referenceDate, 7), 'yyyy-MM-dd');
 
@@ -107,6 +112,8 @@ export function filterDashboardTenants(
             return true;
         })
         .sort((a, b) => {
+            const missingBikeDelta = Number(needsBikeAssignment(b)) - Number(needsBikeAssignment(a));
+            if (missingBikeDelta !== 0) return missingBikeDelta;
             const timeA = a.debtSummary.oldestUnpaidDate?.getTime() ?? a.debtSummary.nextPaymentDate?.getTime() ?? Infinity;
             const timeB = b.debtSummary.oldestUnpaidDate?.getTime() ?? b.debtSummary.nextPaymentDate?.getTime() ?? Infinity;
             return timeA - timeB;
@@ -156,7 +163,7 @@ export function buildRevenueChartData(
             return {
                 date: key,
                 label: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-                fullLabel: `${formatRussianDate(date, 'd MMM')} - ${formatRussianDate(addDays(date, 6), 'd MMM')}${isCurrentWeekForecast ? ' · прогноз по темпу оплат' : ''}`,
+                fullLabel: `${formatRussianDate(date, 'd MMM')} - ${formatRussianDate(addDays(date, 6), 'd MMM')}${isCurrentWeekForecast ? ` · ${translate(getStoredLanguage(), 'прогноз по темпу оплат')}` : ''}`,
                 amount
             };
         }

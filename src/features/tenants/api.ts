@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { normalizeBikeStatus, normalizePaymentAdjustmentDirection, normalizePaymentChargeStatus, type Bike, type DeletableRecord, type PaymentAdjustment, type PaymentCharge, type PaymentEditorValue, type Tenant, type TenantDetail, type TenantEditForm } from '../../types';
-import { slugify, uniqueSlug } from '../../utils/slug';
+import { RESERVED_SLUGS, slugify, uniqueSlug } from '../../utils/slug';
 import { format } from 'date-fns';
 
 const TENANT_IDENTITY_FIELDS = [
@@ -181,10 +181,16 @@ export async function approveTenantPaymentCharge(chargeId: string): Promise<void
 }
 
 export async function updateTenantProfile(id: string, form: TenantEditForm): Promise<void> {
+    const name = form.name.trim();
+    const slug = slugify(form.slug);
+    if (!name) throw new Error('Укажите имя арендатора');
+    if (!slug) throw new Error('Укажите псевдоним ссылки');
+    if (RESERVED_SLUGS.has(slug)) throw new Error('Псевдоним зарезервирован');
+
     const { error: profileError } = await supabase.rpc('update_tenant_profile', {
         p_tenant_id: id,
-        p_name: form.name,
-        p_slug: slugify(form.slug),
+        p_name: name,
+        p_slug: slug,
         p_bike_id: form.bike_id || null,
         p_weekly_payment: Number(form.weekly_payment) || 0,
         p_payment_day: Number(form.payment_day),
@@ -208,27 +214,29 @@ export interface NewTenantInput {
     bike_id: string;
     weekly_payment: number | string;
     payment_day: number | string;
-    next_payment_date: string;
+    next_payment_date: string | null;
     deposit: number | string;
     phone?: string;
     telegram_username?: string;
     battery_config?: string | null;
 }
 
-export async function createTenant(input: NewTenantInput): Promise<void> {
+export async function createTenant(input: NewTenantInput): Promise<{ slug: string }> {
+    const name = input.name.trim();
+    if (!name) throw new Error('Укажите имя арендатора');
     const { data: existingTenants, error: existingTenantsError } = await supabase
         .from('tenants')
         .select('slug');
     if (existingTenantsError) throw existingTenantsError;
 
-    const slug = uniqueSlug(input.slug || input.name, (existingTenants || []).map(tenant => tenant.slug));
+    const slug = uniqueSlug(input.slug || name, (existingTenants || []).map(tenant => tenant.slug));
     const { error } = await supabase.rpc('create_tenant_with_rental', {
-        p_name: input.name,
+        p_name: name,
         p_slug: slug,
         p_bike_id: input.bike_id || null,
         p_weekly_payment: Number(input.weekly_payment) || 0,
         p_payment_day: Number(input.payment_day),
-        p_first_payment_date: input.next_payment_date,
+        p_first_payment_date: input.next_payment_date || null,
         p_deposit: Number(input.deposit) || 0,
         p_phone: input.phone?.trim() || null,
         p_telegram_username: normalizeTelegram(input.telegram_username) || null,
@@ -237,6 +245,7 @@ export async function createTenant(input: NewTenantInput): Promise<void> {
     });
 
     if (error) throw error;
+    return { slug };
 }
 
 export async function setTenantArchived(id: string, archived: boolean): Promise<void> {

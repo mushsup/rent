@@ -1,6 +1,7 @@
 import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { X } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { useI18n } from '../../i18n';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -16,7 +17,8 @@ export function Button({ className, variant = 'primary', children, ...props }: B
 }
 
 export function IconButton({ label, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
-  return <button type="button" aria-label={label} title={label} className={twMerge('inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white', className)} {...props} />;
+  const { t } = useI18n();
+  return <button type="button" aria-label={t(label)} title={t(label)} className={twMerge('inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white', className)} {...props} />;
 }
 
 const fieldClass = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:border-lime-600 focus:ring-2 focus:ring-lime-500/30 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-400';
@@ -57,23 +59,29 @@ export function StatusBadge({ tone = 'slate', className, children }: { tone?: St
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
-  return <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold text-slate-950 dark:text-white">{title}</h1>{description && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>}</div>{actions}</header>;
+  const { t } = useI18n();
+  return <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold text-slate-950 dark:text-white">{t(title)}</h1>{description && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t(description)}</p>}</div>{actions}</header>;
 }
 
-export function LoadingState({ label = 'Загрузка...', rows = 3 }: { label?: string; rows?: number }) {
-  return <div role="status" aria-label={label} aria-live="polite" className="animate-pulse space-y-3 px-6 py-6">{Array.from({ length: rows }).map((_, index) => <div key={index} className="h-5 rounded bg-slate-200 dark:bg-slate-800" />)}</div>;
+export function LoadingState({ label, rows = 3 }: { label?: string; rows?: number }) {
+  const { t } = useI18n();
+  const text = t(label ?? 'Загрузка...');
+  return <div role="status" aria-label={text} aria-live="polite" className="animate-pulse space-y-3 px-6 py-6">{Array.from({ length: rows }).map((_, index) => <div key={index} className="h-5 rounded bg-slate-200 dark:bg-slate-800" />)}</div>;
 }
 
 export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
-  return <div className="px-6 py-14 text-center"><p className="text-sm text-slate-600 dark:text-slate-400">{title}</p>{action && <div className="mt-4 flex justify-center">{action}</div>}</div>;
+  const { t } = useI18n();
+  return <div className="px-6 py-14 text-center"><p className="text-sm text-slate-600 dark:text-slate-400">{t(title)}</p>{action && <div className="mt-4 flex justify-center">{action}</div>}</div>;
 }
 
 export function ErrorState({ message, retry }: { message: string; retry?: () => void }) {
-  return <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"><p>{message}</p>{retry && <Button variant="secondary" className="mt-3" onClick={retry}>Повторить</Button>}</div>;
+  const { t } = useI18n();
+  return <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"><p>{t(message)}</p>{retry && <Button variant="secondary" className="mt-3" onClick={retry}>{t('Повторить')}</Button>}</div>;
 }
 
 export function Dialog({ open, title, ariaLabel, size = 'lg', className, onClose, children, footer }: { open: boolean; title?: string; ariaLabel?: string; size?: 'sm' | 'md' | 'lg'; className?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   const titleId = useId();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -87,9 +95,9 @@ export function Dialog({ open, title, ariaLabel, size = 'lg', className, onClose
   if (!open) return null;
   const sizeClass = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' }[size];
   return <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
-    <button type="button" aria-label="Закрыть диалог" className="absolute inset-0 cursor-default bg-slate-950/75 backdrop-blur-sm" onClick={onClose} />
+    <button type="button" aria-label={t('Закрыть диалог')} className="absolute inset-0 cursor-default bg-slate-950/75 backdrop-blur-sm" onClick={onClose} />
     <section role="dialog" aria-modal="true" {...(title ? { 'aria-labelledby': titleId } : { 'aria-label': ariaLabel || 'Диалог' })} className={twMerge('relative max-h-[90vh] w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900', sizeClass, className)}>
-      {title && <div className="mb-4 flex items-center justify-between gap-4"><h2 id={titleId} className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2><IconButton label="Закрыть" onClick={onClose}><X className="h-5 w-5" /></IconButton></div>}
+      {title && <div className="mb-4 flex items-center justify-between gap-4"><h2 id={titleId} className="text-lg font-bold text-slate-950 dark:text-white">{t(title)}</h2><IconButton label="Закрыть" onClick={onClose}><X className="h-5 w-5" /></IconButton></div>}
       {children}
       {footer && <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">{footer}</div>}
     </section>
@@ -97,7 +105,8 @@ export function Dialog({ open, title, ariaLabel, size = 'lg', className, onClose
 }
 
 export function ConfirmDialog({ open, title, description, confirmLabel = 'Удалить', confirmVariant = 'danger', busy = false, onCancel, onConfirm }: { open: boolean; title: string; description: string; confirmLabel?: string; confirmVariant?: ButtonVariant; busy?: boolean; onCancel: () => void; onConfirm: () => void }) {
-  return <Dialog open={open} title={title} onClose={onCancel} footer={<><Button variant="secondary" onClick={onCancel} disabled={busy}>Отмена</Button><Button variant={confirmVariant} onClick={onConfirm} disabled={busy}>{busy ? 'Выполняется...' : confirmLabel}</Button></>}>
-    <p className="text-sm text-slate-600 dark:text-slate-300">{description}</p>
+  const { t } = useI18n();
+  return <Dialog open={open} title={title} onClose={onCancel} footer={<><Button variant="secondary" onClick={onCancel} disabled={busy}>{t('Отмена')}</Button><Button variant={confirmVariant} onClick={onConfirm} disabled={busy}>{busy ? t('Выполняется...') : t(confirmLabel)}</Button></>}>
+    <p className="text-sm text-slate-600 dark:text-slate-300">{t(description)}</p>
   </Dialog>;
 }

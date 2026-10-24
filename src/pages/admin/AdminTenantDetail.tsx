@@ -17,6 +17,8 @@ import { TenantBikeSelector } from './TenantBikeSelector';
 import { TenantLedgerModalForm, type LedgerModalEntry } from './TenantLedgerModalForm';
 import { RentalEndModal } from './TenantRentalModals';
 import { TenantBalanceSection } from './TenantBalanceSection';
+import { useI18n } from '../../i18n';
+import { RESERVED_SLUGS, slugify } from '../../utils/slug';
 
 function normalizeTelegramUsername(value: string | null | undefined): string {
     return (value || '').trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '');
@@ -26,13 +28,18 @@ function getPhoneHref(phone: string | null | undefined): string {
     return `tel:${(phone || '').replace(/[^\d+]/g, '')}`;
 }
 
-function getTelegramMessage(debt: number): string {
-    const debtText = debt > 0 ? `У тебя висит долг: ${Math.round(debt * 100) / 100} zł.` : 'Задолженности нет.';
-    return `Привет! Сегодня день оплаты. ${debtText}`;
+function buildEditForm(tenant: TenantDetail): TenantEditForm {
+    return { ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? '', battery_config: tenant.battery_config || '' };
+}
+
+function getTelegramMessage(debt: number, t: (key: string, params?: Record<string, string | number>) => string): string {
+    const debtText = debt > 0 ? t('У тебя висит долг: {{amount}} zł.', { amount: Math.round(debt * 100) / 100 }) : t('Задолженности нет.');
+    return t('Привет! Сегодня день оплаты. {{debt}}', { debt: debtText });
 }
 
 export default function AdminTenantDetail() {
     const { id } = useParams();
+    const { t } = useI18n();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
@@ -48,17 +55,23 @@ export default function AdminTenantDetail() {
     const [customBatteryIndex, setCustomBatteryIndex] = useState<number | null>(null);
     const [customBatteryCode, setCustomBatteryCode] = useState('');
     const [customBatterySaving, setCustomBatterySaving] = useState(false);
+    const [isSavingTenant, setIsSavingTenant] = useState(false);
+    const [isArchiveBusy, setIsArchiveBusy] = useState(false);
+    const [isDeleteBusy, setIsDeleteBusy] = useState(false);
+    const [pendingSave, setPendingSave] = useState<TenantEditForm | null>(null);
+    const [isBikeChangeModalOpen, setIsBikeChangeModalOpen] = useState(false);
+    const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
 
-    const { data: bikes = [], isError: bikesError } = useQuery<Bike[]>({
+    const { data: bikes = [], isError: bikesError, refetch: refetchBikes } = useQuery<Bike[]>({
         queryKey: queryKeys.bikes.all,
         queryFn: fetchBikes
     });
-    const { data: batteries = [] } = useQuery<Battery[]>({
+    const { data: batteries = [], isError: batteriesError, refetch: refetchBatteries } = useQuery<Battery[]>({
         queryKey: queryKeys.batteries.all,
         queryFn: fetchBatteries,
     });
 
-    const { data: tenant, isLoading: loading, isError: tenantError, error: tenantQueryError } = useQuery<TenantDetail | null>({
+    const { data: tenant, isLoading: loading, isError: tenantError, error: tenantQueryError, refetch: refetchTenant } = useQuery<TenantDetail | null>({
         queryKey: id ? queryKeys.tenants.detail(id) : queryKeys.tenants.all,
         queryFn: () => fetchTenantDetail(id!),
         enabled: Boolean(id)
@@ -73,14 +86,28 @@ export default function AdminTenantDetail() {
 
     useEffect(() => {
         if (tenant && !editForm) {
-            setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? '', battery_config: tenant.battery_config || '' });
+            setEditForm(buildEditForm(tenant));
             setBatteryAssignments(parseBatteryConfig(tenant.battery_config));
         }
     }, [tenant, editForm]);
 
-    if (loading) return <LoadingState label="Загрузка арендатора…" />;
-    if (tenantError || bikesError) return <ErrorState message={`Не удалось загрузить арендатора. ${tenantQueryError?.message || 'Проверьте подключение к базе данных.'}`} retry={() => { void queryClient.invalidateQueries({ queryKey: id ? queryKeys.tenants.detail(id) : queryKeys.tenants.all }); }} />;
-    if (!tenant || !editForm) return <EmptyState title="Арендатор не найден" />;
+    const initialForm = tenant ? buildEditForm(tenant) : null;
+    const isDirty = Boolean(isEditing && editForm && initialForm && JSON.stringify(editForm) !== JSON.stringify(initialForm));
+
+    useEffect(() => {
+        if (!isDirty) return;
+        const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', warnBeforeUnload);
+        return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+    }, [isDirty]);
+
+    if (loading) return <LoadingState label={t('Загрузка арендатора…')} />;
+    if (tenantError) return <ErrorState message={`${t('Не удалось загрузить арендатора.')} ${t(getErrorMessage(tenantQueryError))}`} retry={() => void refetchTenant()} />;
+    if (bikesError) return <ErrorState message={t('Не удалось загрузить велосипеды.')} retry={() => void refetchBikes()} />;
+    if (!tenant || !editForm) return <EmptyState title={t('Арендатор не найден')} />;
 
     const confirmDeleteRecord = async () => {
         if (!deletingRecord) return;
@@ -88,7 +115,7 @@ export default function AdminTenantDetail() {
         try {
             await deleteTenantRecord(deletingRecord, id);
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
             return;
         }
 
@@ -96,9 +123,47 @@ export default function AdminTenantDetail() {
         invalidateTenantData();
     };
 
-    const handleUpdateTenant = async (e: FormEvent<HTMLFormElement>) => {
+    const resetEditForm = () => {
+        if (!tenant) return;
+        setEditForm(buildEditForm(tenant));
+        setBatteryAssignments(parseBatteryConfig(tenant.battery_config));
+    };
+
+    const saveTenantUpdate = async (form: TenantEditForm) => {
+        if (!tenant) return;
+        setIsSavingTenant(true);
+        try {
+            await updateTenantProfile(id!, form);
+            setIsEditing(false);
+            setEditForm(null);
+            setPendingSave(null);
+            setIsBikeChangeModalOpen(false);
+            invalidateTenantData();
+            toast.success(t('Арендатор сохранён'));
+        } catch (error) {
+            toast.error(t(getErrorMessage(error)));
+        } finally {
+            setIsSavingTenant(false);
+        }
+    };
+
+    const handleUpdateTenant = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!tenant || !editForm) return;
+        const name = editForm.name.trim();
+        const slug = slugify(editForm.slug);
+        if (!name) {
+            toast.error(t('Укажите имя арендатора'));
+            return;
+        }
+        if (!slug) {
+            toast.error(t('Укажите псевдоним ссылки'));
+            return;
+        }
+        if (RESERVED_SLUGS.has(slug)) {
+            toast.error(t('Псевдоним зарезервирован'));
+            return;
+        }
         const paymentDay = normalizePaymentDay(editForm.payment_day);
         const currentPaymentDay = Number(tenant.payment_day) || getPaymentDay(tenant.next_payment_date || new Date());
         const weeklyPayment = Number(editForm.weekly_payment) || 0;
@@ -107,54 +172,83 @@ export default function AdminTenantDetail() {
             : paymentDay === currentPaymentDay && tenant.next_payment_date
                 ? tenant.next_payment_date
                 : getScheduledPaymentDate(tenant.next_payment_date || new Date(), paymentDay);
-        try {
-            await updateTenantProfile(id!, { ...editForm, battery_config: serializeBatteryConfig(batteryAssignments), payment_day: paymentDay, next_payment_date: nextPaymentDate, weekly_payment: weeklyPayment });
-            setIsEditing(false);
-            invalidateTenantData();
-        } catch (error) {
-            toast.error(getErrorMessage(error));
+        const nextForm: TenantEditForm = {
+            ...editForm,
+            name,
+            slug,
+            battery_config: serializeBatteryConfig(batteryAssignments),
+            payment_day: paymentDay,
+            next_payment_date: nextPaymentDate,
+            weekly_payment: weeklyPayment,
+        };
+        const currentBikeId = tenant.bikes?.id || '';
+        const selectedBike = bikes.find(bike => bike.id === nextForm.bike_id);
+        const changesCurrentRental = Boolean(currentBikeId) && nextForm.bike_id !== currentBikeId;
+        const takesAnotherRental = selectedBike?.status === 'in_rent' && selectedBike.id !== currentBikeId;
+        if (changesCurrentRental || takesAnotherRental) {
+            setPendingSave(nextForm);
+            setIsBikeChangeModalOpen(true);
+            return;
         }
+        void saveTenantUpdate(nextForm);
     };
 
     const confirmToggleArchive = async () => {
         const newArchivedState = !tenant.is_archived;
+        setIsArchiveBusy(true);
         try {
             await setTenantArchived(id!, newArchivedState);
+            setIsArchiveModalOpen(false);
             invalidateTenantData();
             navigate('/');
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
+        } finally {
+            setIsArchiveBusy(false);
         }
     };
 
     const confirmDeleteTenant = async () => {
+        setIsDeleteBusy(true);
         try {
             await deleteTenant(id!);
+            setIsDeleteModalOpen(false);
             queryClient.invalidateQueries({ queryKey: queryKeys.tenants.all });
             navigate('/');
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
+        } finally {
+            setIsDeleteBusy(false);
         }
     };
 
     const handleApproveCharge = async (chargeId: string) => {
         try {
             await approveTenantPaymentCharge(chargeId);
-            toast.success('Начисление утверждено');
+            toast.success(t('Начисление утверждено'));
             invalidateTenantData();
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
         }
+    };
+
+    const handleCancelEdit = () => {
+        if (isDirty) {
+            setIsDiscardModalOpen(true);
+            return;
+        }
+        resetEditForm();
+        setIsEditing(false);
     };
 
     const paymentLedger = buildPaymentLedger(tenant, tenant.payments);
 
     const copyTelegramMessage = async () => {
         try {
-            await navigator.clipboard.writeText(getTelegramMessage(paymentLedger.balanceAtReference));
-            toast.success('Сообщение скопировано');
+            await navigator.clipboard.writeText(getTelegramMessage(paymentLedger.balanceAtReference, t));
+            toast.success(t('Сообщение скопировано'));
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
         }
     };
 
@@ -174,14 +268,15 @@ export default function AdminTenantDetail() {
             await queryClient.invalidateQueries({ queryKey: queryKeys.batteries.all });
             setCustomBatteryCode('');
             setCustomBatteryIndex(null);
-            toast.success(`Батарея ${battery.code} добавлена в инвентарь`);
+            toast.success(t('Батарея {{code}} добавлена в инвентарь', { code: battery.code }));
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
         } finally {
             setCustomBatterySaving(false);
         }
     };
 
+    const pendingBike = pendingSave ? bikes.find(bike => bike.id === pendingSave.bike_id) : null;
     const sortedBikes = [...bikes].sort((a, b) => {
             const statusOrder: Record<string, number> = { available: 0, maintenance: 1, in_rent: 2 };
             return (statusOrder[a.status || ''] ?? 3) - (statusOrder[b.status || ''] ?? 3);
@@ -191,7 +286,7 @@ export default function AdminTenantDetail() {
         <div className="max-w-5xl mx-auto font-sans px-2 sm:px-6 py-4 sm:py-6 pb-24">
             <div className="mb-6">
                 <Link to="/" className="text-sm font-medium text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300 flex items-center">
-                    <ArrowLeft className="w-4 h-4 mr-1" /> Вернуться к списку
+                    <ArrowLeft className="w-4 h-4 mr-1" /> {t('Вернуться к списку')}
                 </Link>
             </div>
 
@@ -199,49 +294,49 @@ export default function AdminTenantDetail() {
                 {!isEditing ? (
                     <>
                         <div className="absolute right-4 top-4 flex items-center gap-2 sm:right-6 sm:top-6">
-                            <button aria-label="Редактировать арендатора" onClick={() => { setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? '', battery_config: tenant.battery_config || '' }); setBatteryAssignments(parseBatteryConfig(tenant.battery_config)); setIsEditing(true); }} className="rounded-lg bg-slate-200/50 p-2 text-slate-500 transition-colors hover:text-slate-900 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:text-white">
+                            <button aria-label={t('Редактировать арендатора')} onClick={() => { resetEditForm(); setIsEditing(true); }} className="rounded-lg bg-slate-200/50 p-2 text-slate-500 transition-colors hover:text-slate-900 dark:bg-slate-700/50 dark:text-slate-400 dark:hover:text-white">
                                 <Edit2 className="w-5 h-5" />
                             </button>
                         </div>
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white pr-10 flex items-center gap-3">
                             {tenant.name}
-                            {tenant.is_archived && <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded text-xs uppercase font-bold tracking-wider">Архив</span>}
+                            {tenant.is_archived && <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded text-xs uppercase font-bold tracking-wider">{t('Архив')}</span>}
                         </h1>
-                        <p className="text-lime-800 dark:text-lime-400 font-medium mt-1">/{tenant.slug} — <span className="text-slate-500 dark:text-slate-400">{tenant.bikes?.model || 'Нет велосипеда'}</span></p>
+                        <p className="text-lime-800 dark:text-lime-400 font-medium mt-1">/{tenant.slug} — <span className="text-slate-500 dark:text-slate-400">{tenant.bikes?.model || t('Нет велосипеда')}</span></p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
                             <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                                <span className="block text-slate-500 dark:text-slate-400 mb-1">Ставка в неделю:</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-1">{t('Ставка в неделю:')}</span>
                                 <span className="font-semibold text-slate-900 dark:text-white text-lg">{getTenantWeeklyPayment(tenant)}&nbsp;zł</span>
                             </div>
                             <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                                <span className="block text-slate-500 dark:text-slate-400 mb-1">Депозит:</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-1">{t('Депозит:')}</span>
                                 <span className="font-semibold text-slate-900 dark:text-white text-lg">{tenant.deposit || 0}&nbsp;zł</span>
                             </div>
                             <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                                <span className="block text-slate-500 dark:text-slate-400 mb-1">Батарея:</span>
-                                <span className="font-semibold text-slate-900 dark:text-white text-lg">{getBatteryLabel(tenant.battery_config)}</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-1">{t('Батарея:')}</span>
+                                <span className="font-semibold text-slate-900 dark:text-white text-lg">{t(getBatteryLabel(tenant.battery_config))}</span>
                             </div>
                             <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                                <span className="block text-slate-500 dark:text-slate-400 mb-2">Телефон:</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-2">{t('Телефон:')}</span>
                                 {tenant.phone ? (
                                     <a href={getPhoneHref(tenant.phone)} className="inline-flex items-center gap-2 font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300">
                                         <Phone className="h-4 w-4" /> {tenant.phone}
                                     </a>
-                                ) : <span className="text-slate-500 dark:text-slate-400">Не указан</span>}
+                                ) : <span className="text-slate-500 dark:text-slate-400">{t('Не указан')}</span>}
                             </div>
                             <div className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                                 <span className="block text-slate-500 dark:text-slate-400 mb-2">Telegram:</span>
                                 {tenant.telegram_username ? (
-                                    <a href={`https://t.me/${normalizeTelegramUsername(tenant.telegram_username)}?text=${encodeURIComponent(getTelegramMessage(paymentLedger.balanceAtReference))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300">
-                                        <Send className="h-4 w-4" /> Написать @{normalizeTelegramUsername(tenant.telegram_username)}
+                                    <a href={`https://t.me/${normalizeTelegramUsername(tenant.telegram_username)}?text=${encodeURIComponent(getTelegramMessage(paymentLedger.balanceAtReference, t))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300">
+                                        <Send className="h-4 w-4" /> {t('Написать @{{username}}', { username: normalizeTelegramUsername(tenant.telegram_username) })}
                                     </a>
                                 ) : <button type="button" onClick={copyTelegramMessage} className="inline-flex items-center gap-2 font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-300">
-                                    <Send className="h-4 w-4" /> Скопировать сообщение
+                                    <Send className="h-4 w-4" /> {t('Скопировать сообщение')}
                                 </button>}
                             </div>
                             <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-700/50">
-                                <span className="block text-slate-500 dark:text-slate-400 mb-1 text-xs uppercase tracking-wider">Заметка администратора</span>
-                                <span className="text-slate-600 dark:text-slate-300 whitespace-pre-line">{tenant.admin_comment || 'Нет комментария'}</span>
+                                <span className="block text-slate-500 dark:text-slate-400 mb-1 text-xs uppercase tracking-wider">{t('Заметка администратора')}</span>
+                                <span className="text-slate-600 dark:text-slate-300 whitespace-pre-line">{tenant.admin_comment || t('Нет комментария')}</span>
                             </div>
                         </div>
                     </>
@@ -249,93 +344,99 @@ export default function AdminTenantDetail() {
                     <form onSubmit={handleUpdateTenant} className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="tenant-name" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Имя</label>
+                                <label htmlFor="tenant-name" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Имя')}</label>
                                 <input id="tenant-name" type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Велосипед</label>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Велосипед')}</label>
                                 <TenantBikeSelector
                                     bikes={sortedBikes}
                                     selectedBikeId={editForm.bike_id}
+                                    currentBikeId={tenant.bikes?.id || ''}
                                     onChange={(bikeId) => setEditForm({ ...editForm, bike_id: bikeId })}
                                 />
                             </div>
                             <div>
-                                <label htmlFor="tenant-slug" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Псевдоним ссылки</label>
+                                <label htmlFor="tenant-slug" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Псевдоним ссылки')}</label>
                                 <div className="mt-1 flex rounded-md shadow-sm">
                                     <span className="inline-flex items-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 px-3 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 sm:text-sm">/</span>
-                                    <input id="tenant-slug" type="text" value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: e.target.value })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                    <input id="tenant-slug" type="text" value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: slugify(e.target.value) })} className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="tenant-deposit" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Депозит (zł)</label>
+                                <label htmlFor="tenant-deposit" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Депозит (zł)')}</label>
                                 <input id="tenant-deposit" type="number" value={editForm.deposit || ''} onChange={e => setEditForm({ ...editForm, deposit: e.target.value })} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label htmlFor="tenant-phone" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Телефон</label>
+                                <label htmlFor="tenant-phone" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Телефон')}</label>
                                 <input id="tenant-phone" type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+48 123 456 789" className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
                                 <label htmlFor="tenant-telegram" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Telegram</label>
-                                <input id="tenant-telegram" type="text" value={editForm.telegram_username || ''} onChange={e => setEditForm({ ...editForm, telegram_username: e.target.value })} placeholder="username или @username" className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
+                                <input id="tenant-telegram" type="text" value={editForm.telegram_username || ''} onChange={e => setEditForm({ ...editForm, telegram_username: e.target.value })} placeholder={t('username или @username')} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div>
-                                <label htmlFor="tenant-weekly" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Еженедельный платеж (zł)</label>
+                                <label htmlFor="tenant-weekly" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Еженедельный платеж (zł)')}</label>
                                 <input id="tenant-weekly" type="number" min="0" value={editForm.weekly_payment || ''} onChange={e => setEditForm({ ...editForm, weekly_payment: e.target.value })} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" />
                             </div>
                             <div className="sm:col-span-2">
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Батареи</label>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Батареи')}</label>
+                                {batteriesError && <div className="mt-2"><ErrorState message={t('Не удалось загрузить батареи.')} retry={() => void refetchBatteries()} /></div>}
                                 <div className="mt-1 grid gap-3 sm:grid-cols-2">
                                     {[0, 1].map(index => {
                                         const assignment = batteryAssignments[index];
                                         const selectedCapacity = assignment?.capacity || '';
-                                        const availableBatteries = batteries.filter(battery => battery.status === 'available' || battery.id === assignment?.battery_id);
+                                        const usedBatteryIds = new Set(batteryAssignments.filter((_, otherIndex) => otherIndex !== index).map(item => item.battery_id).filter((value): value is string => Boolean(value)));
+                                        const availableBatteries = batteries.filter(battery => battery.id && (battery.status === 'available' || battery.id === assignment?.battery_id) && (!usedBatteryIds.has(battery.id) || battery.id === assignment?.battery_id));
                                         return <div key={index} className="rounded-lg border border-slate-400 bg-slate-200 p-3 dark:border-slate-600 dark:bg-slate-700">
-                                            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Батарея {index + 1}</div>
+                                            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">{t('Батарея {{n}}', { n: index + 1 })}</div>
                                             <select value={selectedCapacity} onChange={event => { const next = batteryAssignments.slice(); if (event.target.value) next[index] = { capacity: event.target.value, battery_id: null, code: null }; else next.splice(index, 1); updateBatteryAssignments(next); }} className="block w-full rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-                                                <option value="">Не используется</option>{BATTERY_CAPACITY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                                <option value="">{t('Не используется')}</option>{BATTERY_CAPACITY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                             </select>
                                             <select value={customBatteryIndex === index ? '__custom__' : assignment?.battery_id || ''} disabled={!assignment?.capacity} onChange={event => { if (event.target.value === '__custom__') { setCustomBatteryIndex(index); setCustomBatteryCode(''); return; } const battery = batteries.find(item => item.id === event.target.value); const next = batteryAssignments.slice(); next[index] = { ...assignment!, battery_id: battery?.id || null, code: battery?.code || null }; updateBatteryAssignments(next); }} className="mt-2 block w-full rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-                                                <option value="">Серийный код не выбран</option>{availableBatteries.map(battery => <option key={battery.id} value={battery.id}>{battery.code}</option>)}<option value="__custom__">＋ Ввести новый код</option>
+                                                <option value="">{t('Серийный код не выбран')}</option>{availableBatteries.map(battery => <option key={battery.id} value={battery.id}>{battery.code}</option>)}<option value="__custom__">{t('＋ Ввести новый код')}</option>
                                             </select>
-                                            {customBatteryIndex === index && <div className="mt-2 flex gap-2"><input autoFocus value={customBatteryCode} onChange={event => setCustomBatteryCode(event.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" maxLength={3} placeholder="007" className="min-w-0 flex-1 rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" /><button type="button" disabled={customBatterySaving || customBatteryCode.length !== 3} onClick={() => addCustomBattery(index)} className="rounded-md bg-lime-500 px-3 text-xs font-bold text-slate-950 disabled:opacity-50">{customBatterySaving ? '…' : 'Добавить'}</button></div>}
+                                            {customBatteryIndex === index && <div className="mt-2 flex gap-2"><input autoFocus value={customBatteryCode} onChange={event => setCustomBatteryCode(event.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" maxLength={3} placeholder="007" className="min-w-0 flex-1 rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" /><button type="button" disabled={customBatterySaving || customBatteryCode.length !== 3} onClick={() => addCustomBattery(index)} className="rounded-md bg-lime-500 px-3 text-xs font-bold text-slate-950 disabled:opacity-50">{customBatterySaving ? '…' : t('Добавить')}</button></div>}
                                         </div>;
                                     })}
                                 </div>
-                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Сначала выберите ёмкость. Серийный код можно добавить позже, когда батареи будут внесены в инвентарь.</p>
-                                {batteryAssignments.length > 0 && <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span className="text-slate-500 dark:text-slate-400">Рекомендованная цена: <strong className="text-lime-800 dark:text-lime-300">{getRecommendedWeeklyPrice(sortedBikes.find(bike => bike.id === editForm.bike_id)?.type || editForm.bikes?.type, serializeBatteryConfig(batteryAssignments)) ?? '—'} zł/нед.</strong></span><button type="button" onClick={() => { const recommended = getRecommendedWeeklyPrice(sortedBikes.find(bike => bike.id === editForm.bike_id)?.type || editForm.bikes?.type, serializeBatteryConfig(batteryAssignments)); if (recommended != null) setEditForm({ ...editForm, weekly_payment: recommended }); }} className="font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-300">Применить</button></div>}
+                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('Сначала выберите ёмкость. Серийный код можно добавить позже, когда батареи будут внесены в инвентарь.')}</p>
+                                {batteryAssignments.length > 0 && <div className="mt-2 flex items-center justify-between gap-2 text-xs"><span className="text-slate-500 dark:text-slate-400">{t('Рекомендованная цена:')} <strong className="text-lime-800 dark:text-lime-300">{getRecommendedWeeklyPrice(sortedBikes.find(bike => bike.id === editForm.bike_id)?.type || editForm.bikes?.type, serializeBatteryConfig(batteryAssignments)) ?? '—'} {t('zł/нед.')}</strong></span><button type="button" onClick={() => { const recommended = getRecommendedWeeklyPrice(sortedBikes.find(bike => bike.id === editForm.bike_id)?.type || editForm.bikes?.type, serializeBatteryConfig(batteryAssignments)); if (recommended != null) setEditForm({ ...editForm, weekly_payment: recommended }); }} className="font-semibold text-lime-800 hover:text-lime-700 dark:text-lime-300">{t('Применить')}</button></div>}
                             </div>
                             <div>
-                                <label htmlFor="tenant-payment-day" className="block text-sm font-medium text-slate-600 dark:text-slate-300">День еженедельного платежа</label>
+                                <label htmlFor="tenant-payment-day" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('День еженедельного платежа')}</label>
                                 <select id="tenant-payment-day" value={editForm.payment_day || DEFAULT_PAYMENT_DAY} onChange={e => setEditForm({ ...editForm, payment_day: Number(e.target.value) })} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm">
-                                    {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
+                                    {PAYMENT_DAYS.map(day => <option key={day.value} value={day.value}>{t(day.label)}</option>)}
                                 </select>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('Меняет день недели, в который списывается еженедельная аренда. Уже созданные начисления сохраняются.')}</p>
                             </div>
                             <div className="sm:col-span-2">
-                                <label htmlFor="tenant-comment" className="block text-sm font-medium text-slate-600 dark:text-slate-300">Комментарий (видно арендатору)</label>
+                                <label htmlFor="tenant-comment" className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Комментарий (видно арендатору)')}</label>
                                 <textarea id="tenant-comment" value={editForm.admin_comment || ''} onChange={e => setEditForm({ ...editForm, admin_comment: e.target.value })} className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white py-2 px-3 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 sm:text-sm" rows={3} />
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-slate-700/50">
-                            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Опасная зона</h3>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <button type="button" onClick={() => setIsArchiveModalOpen(true)} className="flex items-center justify-center px-4 py-2 border border-orange-700/50 bg-orange-900/20 text-orange-400 rounded-md hover:bg-orange-900/40 transition-colors">
-                                    <Archive className="w-4 h-4 mr-2" />
-                                    {tenant.is_archived ? "Вернуть из архива" : "Отправить в архив"}
-                                </button>
-                                <button type="button" onClick={() => setIsDeleteModalOpen(true)} className="flex items-center justify-center px-4 py-2 border border-red-700/50 bg-red-900/20 text-red-400 rounded-md hover:bg-red-900/40 transition-colors">
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Удалить арендатора
-                                </button>
-                            </div>
-                        </div>
                         <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                            <button type="button" onClick={() => { setEditForm({ ...tenant, bike_id: tenant.bikes?.id || '', weekly_payment: tenant.weekly_payment ?? '', battery_config: tenant.battery_config || '' }); setBatteryAssignments(parseBatteryConfig(tenant.battery_config)); setIsEditing(false); }} className="rounded-md border border-slate-300 bg-white py-2 px-4 shadow-sm text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors">Отмена</button>
-                            <button type="submit" className="rounded-md border border-transparent bg-lime-600 py-2 px-4 shadow-sm text-sm font-semibold text-slate-950 hover:bg-lime-500 transition-colors">Сохранить</button>
+                            <button type="button" onClick={handleCancelEdit} disabled={isSavingTenant} className="rounded-md border border-slate-300 bg-white py-2 px-4 shadow-sm text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors">{t('Отмена')}</button>
+                            <button type="submit" disabled={isSavingTenant} className="rounded-md border border-transparent bg-lime-600 py-2 px-4 shadow-sm text-sm font-semibold text-slate-950 hover:bg-lime-500 disabled:opacity-50 transition-colors">{isSavingTenant ? t('Сохранение…') : t('Сохранить')}</button>
                         </div>
                     </form>
                 )}
+            </div>
+
+            <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+                <h3 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('Опасная зона')}</h3>
+                {isEditing && <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{t('Сначала сохраните изменения или отмените редактирование.')}</p>}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                    <button type="button" onClick={() => setIsArchiveModalOpen(true)} disabled={isEditing || isSavingTenant} className="flex items-center justify-center rounded-md border border-orange-700/50 bg-orange-900/20 px-4 py-2 text-orange-400 transition-colors hover:bg-orange-900/40 disabled:cursor-not-allowed disabled:opacity-50">
+                        <Archive className="w-4 h-4 mr-2" />
+                        {t(tenant.is_archived ? 'Вернуть из архива' : 'Отправить в архив')}
+                    </button>
+                    <button type="button" onClick={() => setIsDeleteModalOpen(true)} disabled={isEditing || isSavingTenant} className="flex items-center justify-center rounded-md border border-red-700/50 bg-red-900/20 px-4 py-2 text-red-400 transition-colors hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {t('Удалить арендатора')}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -377,13 +478,13 @@ export default function AdminTenantDetail() {
 
             <ConfirmDialog
                 open={Boolean(deletingRecord)}
-                title={`Удалить ${deletingRecord?.type === 'adjustment' ? 'корректировку' : deletingRecord?.type === 'charge' ? 'начисление' : 'платеж'}?`}
-                description="Эта операция удалит запись из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно."
+                title={t(deletingRecord?.type === 'adjustment' ? 'Удалить корректировку?' : deletingRecord?.type === 'charge' ? 'Удалить начисление?' : 'Удалить платеж?')}
+                description={t('Эта операция удалит запись из истории. Баланс арендатора будет пересчитан. Отменить действие будет невозможно.')}
                 onCancel={() => setDeletingRecord(null)}
                 onConfirm={confirmDeleteRecord}
             />
 
-            <Dialog open={isLedgerModalOpen} ariaLabel="Запись в журнале платежей" size="sm" onClose={() => setIsLedgerModalOpen(false)}>
+            <Dialog open={isLedgerModalOpen} ariaLabel={t('Запись в журнале платежей')} size="sm" onClose={() => setIsLedgerModalOpen(false)}>
                 <TenantLedgerModalForm entry={editingLedgerEntry} tenant={tenant} onClose={() => setIsLedgerModalOpen(false)} onSuccess={() => { setIsLedgerModalOpen(false); invalidateTenantData(); }} />
             </Dialog>
 
@@ -391,25 +492,48 @@ export default function AdminTenantDetail() {
 
             <ConfirmDialog
                 open={isArchiveModalOpen}
-                title={tenant.is_archived ? 'Вернуть из архива?' : 'В архив?'}
-                description={tenant.is_archived
+                title={t(tenant.is_archived ? 'Вернуть из архива?' : 'В архив?')}
+                description={t(tenant.is_archived
                     ? 'Арендатор снова появится в общем списке активных клиентов.'
-                    : 'Арендатор будет скрыт, велосипед станет свободным, а будущие автоматические начисления остановятся.'}
-                confirmLabel={tenant.is_archived ? 'Вернуть' : 'В архив'}
+                    : 'Арендатор будет скрыт, велосипед станет свободным, а будущие автоматические начисления остановятся.')}
+                confirmLabel={t(tenant.is_archived ? 'Вернуть' : 'В архив')}
                 confirmVariant="primary"
+                busy={isArchiveBusy}
                 onCancel={() => setIsArchiveModalOpen(false)}
                 onConfirm={confirmToggleArchive}
             />
 
             <ConfirmDialog
                 open={isDeleteModalOpen}
-                title="Удалить арендатора?"
-                description="Вы уверены, что хотите полностью удалить этого арендатора? Это действие необратимо и удалит все связанные платежи."
+                title={t('Удалить арендатора?')}
+                description={t('Вы уверены, что хотите полностью удалить этого арендатора? Это действие необратимо и удалит все связанные платежи.')}
+                busy={isDeleteBusy}
                 onCancel={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDeleteTenant}
             />
 
+            <ConfirmDialog
+                open={isBikeChangeModalOpen}
+                title={t('Изменить велосипед?')}
+                description={tenant.bikes?.id
+                    ? t('Смена или снятие велосипеда завершит текущую аренду и освободит велосипед. Продолжить?')
+                    : t('Велосипед «{{bike}}» уже арендует {{tenant}}. Назначение закроет его текущую аренду. Продолжить?', { bike: pendingBike?.model || '', tenant: pendingBike?.assigned_tenant_name || t('другим арендатором') })}
+                confirmLabel={t('Продолжить')}
+                confirmVariant="primary"
+                busy={isSavingTenant}
+                onCancel={() => { setIsBikeChangeModalOpen(false); setPendingSave(null); }}
+                onConfirm={() => { if (pendingSave) void saveTenantUpdate(pendingSave); }}
+            />
 
+            <ConfirmDialog
+                open={isDiscardModalOpen}
+                title={t('Выйти без сохранения?')}
+                description={t('В форме есть несохранённые изменения. Если выйти сейчас, они будут потеряны.')}
+                confirmLabel={t('Выйти без сохранения')}
+                confirmVariant="danger"
+                onCancel={() => setIsDiscardModalOpen(false)}
+                onConfirm={() => { resetEditForm(); setIsEditing(false); setIsDiscardModalOpen(false); }}
+            />
 
         </div>
     );

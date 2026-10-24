@@ -1,4 +1,7 @@
-const SHORT_MONTHS = ['янв.', 'февр.', 'март', 'апр.', 'май', 'июнь', 'июль', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+import { getStoredLanguage } from '../i18n/translate';
+
+const RU_SHORT_MONTHS = ['янв.', 'февр.', 'март', 'апр.', 'май', 'июнь', 'июль', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -9,7 +12,7 @@ function isValidDate(date: Date): date is Date {
 /** Formats the small set of Russian date labels used by the UI without bundling date-fns/locale. */
 export function formatRussianDate(date: Date, pattern: string): string {
     if (!isValidDate(date)) return '—';
-    const month = SHORT_MONTHS[date.getMonth()];
+    const month = (getStoredLanguage() === 'en' ? EN_SHORT_MONTHS : RU_SHORT_MONTHS)[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
 

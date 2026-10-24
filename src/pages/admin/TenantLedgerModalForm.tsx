@@ -8,6 +8,8 @@ import { getTenantWeeklyPayment } from '../../utils/calculateDebt';
 import { getErrorMessage } from '../../shared/lib/errors';
 import toast from 'react-hot-toast';
 import { DateInput } from '../../shared/ui/DateInput';
+import { ConfirmDialog } from '../../shared/ui';
+import { useI18n } from '../../i18n';
 
 export type LedgerModalEntry =
     | { type: 'payment'; value: PaymentEditorValue | null }
@@ -26,6 +28,7 @@ interface TenantLedgerModalFormProps {
 }
 
 export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: TenantLedgerModalFormProps) {
+    const { t } = useI18n();
     const isEdit = Boolean(entry?.value);
     const today = format(new Date(), 'yyyy-MM-dd');
     const defaultPeriodStart = today;
@@ -41,19 +44,20 @@ export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: Ten
     const [chargeStatus, setChargeStatus] = useState<'open' | 'waived'>(entry?.type === 'charge' && entry.value?.status === 'waived' ? 'waived' : 'open');
     const [comment, setComment] = useState(entry?.value?.comment || '');
     const [loading, setLoading] = useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const fieldClass = 'mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-lime-500 focus:ring-2 focus:ring-lime-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
     const handleDelete = async () => {
         if (!entry?.value || !('id' in entry.value) || !entry.value.id) return;
-        if (!window.confirm('Удалить эту запись из журнала? Баланс будет пересчитан.')) return;
         setLoading(true);
         try {
             const type = entry.type === 'charge' ? 'charge' : entry.type === 'adjustment' ? 'adjustment' : 'payment';
             await deleteTenantRecord({ type, id: entry.value.id } as DeletableRecord, tenant.id);
-            toast.success('Запись удалена');
+            toast.success(t('Запись удалена'));
+            setDeleteConfirmOpen(false);
             onSuccess();
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
         } finally {
             setLoading(false);
         }
@@ -77,8 +81,8 @@ export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: Ten
         setLoading(true);
         try {
             if (recordType === 'adjustment') {
-                if (!comment.trim()) throw new Error('Укажите причину корректировки');
-                if (adjustmentMode === 'set_balance' && balanceTarget === '') throw new Error('Укажите баланс на выбранную дату');
+                if (!comment.trim()) throw new Error(t('Укажите причину корректировки'));
+                if (adjustmentMode === 'set_balance' && balanceTarget === '') throw new Error(t('Укажите баланс на выбранную дату'));
                 await saveAdjustment(tenant.id, entry?.type === 'adjustment' ? entry.value : null, {
                     direction: adjustmentMode === 'set_balance' ? (Number(balanceTarget) >= 0 ? 'charge' : 'credit') : direction,
                     amount: adjustmentMode === 'set_balance' ? 0 : Number(amount),
@@ -87,7 +91,7 @@ export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: Ten
                     comment: comment.trim()
                 });
             } else if (recordType === 'charge') {
-                if (periodEnd < periodStart) throw new Error('Конец периода не может быть раньше начала');
+                if (periodEnd < periodStart) throw new Error(t('Конец периода не может быть раньше начала'));
                 await saveCharge(tenant.id, entry?.type === 'charge' ? entry.value : null, {
                     amount: Number(amount),
                     due_date: date,
@@ -101,7 +105,7 @@ export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: Ten
             }
             onSuccess();
         } catch (error) {
-            toast.error(getErrorMessage(error));
+            toast.error(t(getErrorMessage(error)));
         } finally {
             setLoading(false);
         }
@@ -110,22 +114,23 @@ export function TenantLedgerModalForm({ tenant, entry, onClose, onSuccess }: Ten
     return (
         <div>
             <div className="mb-5 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-slate-900 dark:text-white">{isEdit ? (recordType === 'adjustment' ? 'Редактировать корректировку' : recordType === 'charge' ? 'Редактировать начисление' : 'Редактировать платеж') : 'Новая запись'}</h3>
-                <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-5 w-5" /></button>
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">{isEdit ? t(recordType === 'adjustment' ? 'Редактировать корректировку' : recordType === 'charge' ? 'Редактировать начисление' : 'Редактировать платеж') : t('Новая запись')}</h3>
+                <button type="button" onClick={onClose} aria-label={t('Закрыть')} className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-                {!isEdit && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Тип записи</label><select aria-label="Тип записи" value={recordType} onChange={event => setRecordType(event.target.value as LedgerRecordType)} className={fieldClass}><option value="payment">Оплата</option><option value="charge">Начисление</option><option value="adjustment">Корректировка баланса</option></select></div>}
-                {recordType === 'adjustment' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Способ корректировки</label><select aria-label="Способ корректировки" value={adjustmentMode} onChange={event => setAdjustmentMode(event.target.value as AdjustmentMode)} className={fieldClass}><option value="set_balance">Установить баланс на дату</option><option value="delta">Изменить баланс на сумму</option></select></div>}
-                {recordType === 'adjustment' && adjustmentMode === 'delta' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Тип корректировки</label><select aria-label="Тип корректировки" value={direction} onChange={event => setDirection(normalizePaymentAdjustmentDirection(event.target.value))} className={fieldClass}><option value="credit">Списать долг</option><option value="charge">Увеличить долг</option></select></div>}
+                {!isEdit && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Тип записи')}</label><select aria-label={t('Тип записи')} value={recordType} onChange={event => setRecordType(event.target.value as LedgerRecordType)} className={fieldClass}><option value="payment">{t('Оплата')}</option><option value="charge">{t('Начисление')}</option><option value="adjustment">{t('Корректировка баланса')}</option></select></div>}
+                {recordType === 'adjustment' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Способ корректировки')}</label><select aria-label={t('Способ корректировки')} value={adjustmentMode} onChange={event => setAdjustmentMode(event.target.value as AdjustmentMode)} className={fieldClass}><option value="set_balance">{t('Установить баланс на дату')}</option><option value="delta">{t('Изменить баланс на сумму')}</option></select></div>}
+                {recordType === 'adjustment' && adjustmentMode === 'delta' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Тип корректировки')}</label><select aria-label={t('Тип корректировки')} value={direction} onChange={event => setDirection(normalizePaymentAdjustmentDirection(event.target.value))} className={fieldClass}><option value="credit">{t('Списать долг')}</option><option value="charge">{t('Увеличить долг')}</option></select></div>}
                 {recordType === 'adjustment' && adjustmentMode === 'set_balance'
-                    ? <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Баланс на эту дату (zł)</label><input aria-label="Баланс на эту дату (zł)" type="number" step="0.01" required value={balanceTarget} onChange={event => setBalanceTarget(event.target.value)} placeholder="0" className={fieldClass} /><p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Положительное число — долг, отрицательное — аванс. Все следующие операции считаются от этой суммы.</p></div>
-                    : <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Сумма (zł)</label><input aria-label="Сумма (zł)" type="number" min="0.01" step="0.01" required value={amount} onChange={event => setAmount(event.target.value)} className={fieldClass} /></div>}
-                <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{recordType === 'charge' ? 'Дата начисления' : 'Дата'}</label><DateInput aria-label="Дата" required value={date} onChange={setDate} className={fieldClass} /></div>
-                {recordType === 'charge' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Период с</label><DateInput aria-label="Период с" required value={periodStart} onChange={setPeriodStart} className={fieldClass} /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Период по</label><DateInput aria-label="Период по" required value={periodEnd} onChange={setPeriodEnd} className={fieldClass} /></div></div>}
-                {recordType === 'charge' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">Статус</label><select aria-label="Статус начисления" value={chargeStatus} onChange={event => setChargeStatus(event.target.value === 'waived' ? 'waived' : 'open')} className={fieldClass}><option value="open">Активно</option><option value="waived">Отменено — не учитывать в долге</option></select></div>}
-                <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{recordType === 'adjustment' ? 'Причина корректировки' : 'Комментарий'}</label><textarea aria-label={recordType === 'adjustment' ? 'Причина корректировки' : 'Комментарий'} required={recordType === 'adjustment'} value={comment} onChange={event => setComment(event.target.value)} rows={3} placeholder={recordType === 'adjustment' ? 'Почему меняем баланс?' : recordType === 'charge' ? 'Например: аренда завершена раньше' : 'Например: частичная оплата'} className={`${fieldClass} resize-y`} /></div>
-                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3"><div>{isEdit && <button type="button" onClick={handleDelete} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 sm:w-auto"><Trash2 className="h-4 w-4" /> Удалить запись</button>}</div><div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3"><button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Отмена</button><button type="submit" disabled={loading} className="rounded-md bg-lime-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-400 disabled:opacity-50">Сохранить</button></div></div>
+                    ? <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Баланс на эту дату (zł)')}</label><input aria-label={t('Баланс на эту дату (zł)')} type="number" step="0.01" required value={balanceTarget} onChange={event => setBalanceTarget(event.target.value)} placeholder="0" className={fieldClass} /><p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{t('Положительное число — долг, отрицательное — аванс. Все следующие операции считаются от этой суммы.')}</p></div>
+                    : <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Сумма (zł)')}</label><input aria-label={t('Сумма (zł)')} type="number" min="0.01" step="0.01" required value={amount} onChange={event => setAmount(event.target.value)} className={fieldClass} /></div>}
+                <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t(recordType === 'charge' ? 'Дата начисления' : 'Дата')}</label><DateInput aria-label={t('Дата')} required value={date} onChange={setDate} className={fieldClass} /></div>
+                {recordType === 'charge' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Период с')}</label><DateInput aria-label={t('Период с')} required value={periodStart} onChange={setPeriodStart} className={fieldClass} /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Период по')}</label><DateInput aria-label={t('Период по')} required value={periodEnd} onChange={setPeriodEnd} className={fieldClass} /></div></div>}
+                {recordType === 'charge' && <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('Статус')}</label><select aria-label={t('Статус начисления')} value={chargeStatus} onChange={event => setChargeStatus(event.target.value === 'waived' ? 'waived' : 'open')} className={fieldClass}><option value="open">{t('Активно')}</option><option value="waived">{t('Отменено — не учитывать в долге')}</option></select></div>}
+                <div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t(recordType === 'adjustment' ? 'Причина корректировки' : 'Комментарий')}</label><textarea aria-label={t(recordType === 'adjustment' ? 'Причина корректировки' : 'Комментарий')} required={recordType === 'adjustment'} value={comment} onChange={event => setComment(event.target.value)} rows={3} placeholder={t(recordType === 'adjustment' ? 'Почему меняем баланс?' : recordType === 'charge' ? 'Например: аренда завершена раньше' : 'Например: частичная оплата')} className={`${fieldClass} resize-y`} /></div>
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3"><div>{isEdit && <button type="button" onClick={() => setDeleteConfirmOpen(true)} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30 sm:w-auto"><Trash2 className="h-4 w-4" /> {t('Удалить запись')}</button>}</div><div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3"><button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">{t('Отмена')}</button><button type="submit" disabled={loading} className="rounded-md bg-lime-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-400 disabled:opacity-50">{loading ? t('Сохранение…') : t('Сохранить')}</button></div></div>
             </form>
+            <ConfirmDialog open={deleteConfirmOpen} title={t('Удалить запись?')} description={t('Удалить эту запись из журнала? Баланс будет пересчитан.')} busy={loading} onCancel={() => setDeleteConfirmOpen(false)} onConfirm={handleDelete} />
         </div>
     );
 }

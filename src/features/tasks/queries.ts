@@ -4,6 +4,7 @@ import type { BikeTask } from '../../types';
 import { getErrorMessage } from '../../shared/lib/errors';
 import { queryKeys } from '../../shared/lib/queryKeys';
 import { deleteBikeTask, fetchBikeTasks, pushBikeTask, saveBikeTask, type BikeTaskInput } from './api';
+import { useI18n } from '../../i18n';
 
 export function useBikeTasks(bikeId?: string) {
   return useQuery({
@@ -14,42 +15,46 @@ export function useBikeTasks(bikeId?: string) {
 
 export function useSaveBikeTask() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: BikeTaskInput }) => saveBikeTask(id, input),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      if (result.syncWarning) toast.error(result.syncWarning);
+      if (result.syncWarning) toast.error(t(result.syncWarning));
     },
-    onError: (error) => toast.error(`Ошибка сохранения: ${getErrorMessage(error)}`),
+    onError: (error) => toast.error(`${t('Ошибка сохранения')}: ${t(getErrorMessage(error))}`),
   });
 }
 
 export function useDeleteBikeTask() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: deleteBikeTask,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      if (result.syncWarning) toast.error(result.syncWarning);
+      if (result.syncWarning) toast.error(t(result.syncWarning));
     },
-    onError: (error) => toast.error(`Ошибка удаления: ${getErrorMessage(error)}`),
+    onError: (error) => toast.error(`${t('Ошибка удаления')}: ${t(getErrorMessage(error))}`),
   });
 }
 
 export function usePushBikeTask() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: pushBikeTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      toast.success('Задача отправлена в Google Tasks');
+      toast.success(t('Задача отправлена в Google Tasks'));
     },
-    onError: (error) => toast.error(`Ошибка синхронизации: ${getErrorMessage(error)}`),
+    onError: (error) => toast.error(`${t('Ошибка синхронизации')}: ${t(getErrorMessage(error))}`),
   });
 }
 
 export function useToggleBikeTask() {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   return useMutation({
     mutationFn: (task: BikeTask) => saveBikeTask(task.id, {
       bike_id: task.bike_id,
@@ -65,9 +70,10 @@ export function useToggleBikeTask() {
       queryClient.setQueriesData<BikeTask[]>({ queryKey: queryKeys.tasks.all }, (tasks) => tasks?.map((item) => item.id === task.id ? { ...item, status: item.status === 'done' ? 'open' : 'done' } : item));
       return { snapshots };
     },
+    onSuccess: (result) => { if (result.syncWarning) toast.error(t(result.syncWarning)); },
     onError: (error, _task, context) => {
       context?.snapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast.error(`Ошибка обновления: ${getErrorMessage(error)}`);
+      toast.error(`${t('Ошибка обновления')}: ${t(getErrorMessage(error))}`);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
   });

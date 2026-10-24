@@ -135,6 +135,8 @@ test('арендатора можно создать с велосипедом, 
   await page.getByRole('button', { name: 'Велосипед', exact: true }).click();
   await page.getByRole('option', { name: 'Нет велосипеда' }).click();
   await page.getByRole('button', { name: 'Сохранить' }).click();
+  await expect(page.getByRole('dialog')).toContainText('Изменить велосипед?');
+  await page.getByRole('button', { name: 'Продолжить' }).click();
   await expect.poll(() => rpcCalls.find((call) => call.name === 'update_tenant_profile')?.body.p_bike_id).toBeNull();
 
   await page.getByRole('button', { name: 'Добавить или изменить баланс' }).click();
@@ -216,4 +218,23 @@ test('отмена подтверждения заявки не создаёт �
   await page.getByRole('button', { name: 'Подтвердить оплату' }).click();
   await expect.poll(() => approvals).toHaveLength(1);
   expect(approvals[0]).toMatchObject({ p_request_id: 'request-1', p_payment_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+});
+
+test('английский интерфейс не показывает русских подписей в основных разделах', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('language', 'en'));
+  await authenticate(page);
+  await page.route('**/rest/v1/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: '[]',
+  }));
+
+  for (const path of ['./', './bikes', './tasks', './payments']) {
+    await page.goto(path);
+    await expect(page.locator('main')).toBeVisible();
+    await expect.poll(async () => {
+      const text = await page.locator('main').innerText();
+      return text.match(/.{0,60}[А-Яа-яЁё].{0,60}/)?.[0] ?? '';
+    }, { message: path }).toBe('');
+  }
 });

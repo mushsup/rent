@@ -2,6 +2,7 @@ import { ArrowUpDown } from 'lucide-react';
 import type { Bike, BikeStatus } from '../../types';
 import { BIKE_STATUS_LABELS } from '../../features/bikes/status';
 import { StatusBadge, type StatusTone } from '../../shared/ui';
+import { useI18n } from '../../i18n';
 
 export type BikeSortField = 'model' | 'status' | 'type';
 
@@ -9,6 +10,8 @@ interface BikeInventoryListProps {
     bikes: Bike[];
     onSort: (field: BikeSortField) => void;
     onSelect: (bikeId: string) => void;
+    sortBy?: BikeSortField;
+    sortOrder?: 'asc' | 'desc';
 }
 
 const statusTones: Record<BikeStatus, StatusTone> = {
@@ -18,13 +21,15 @@ const statusTones: Record<BikeStatus, StatusTone> = {
 };
 
 function StatusBadgeView({ status, compact = false }: { status: BikeStatus | null | undefined; compact?: boolean }) {
+    const { t } = useI18n();
     const safeStatus = status || 'available';
     return <StatusBadge tone={statusTones[safeStatus]} className={compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'}>
-        {BIKE_STATUS_LABELS[safeStatus]}
+        {t(BIKE_STATUS_LABELS[safeStatus])}
     </StatusBadge>;
 }
 
-export function BikeInventoryList({ bikes, onSort, onSelect }: BikeInventoryListProps) {
+export function BikeInventoryList({ bikes, onSort, onSelect, sortBy, sortOrder }: BikeInventoryListProps) {
+    const { t } = useI18n();
     return <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="block divide-y divide-slate-100 dark:divide-slate-700/50 sm:hidden">
             {bikes.map((bike) => {
@@ -48,10 +53,10 @@ export function BikeInventoryList({ bikes, onSort, onSelect }: BikeInventoryList
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-white dark:bg-slate-900/50">
                     <tr>
-                        {(['model', 'type', 'status'] as const).map((field) => <th key={field} scope="col" className="cursor-pointer px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 transition-colors hover:text-lime-800 dark:text-slate-300 dark:hover:text-lime-400" onClick={() => onSort(field)}>
-                            <div className="flex items-center gap-1">{field === 'model' ? 'Модель' : field === 'type' ? 'Тип' : 'Статус'} <ArrowUpDown className="h-3 w-3" /></div>
+                        {(['model', 'type', 'status'] as const).map((field) => <th key={field} scope="col" aria-sort={sortBy === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                            <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 rounded-md px-4 py-2 transition-colors hover:text-lime-800 dark:hover:text-lime-400">{field === 'model' ? t('Модель') : field === 'type' ? t('Тип') : t('Статус')} <ArrowUpDown className="h-3 w-3" aria-hidden="true" /></button>
                         </th>)}
-                        <th scope="col" className="relative px-6 py-4"><span className="sr-only">Действия</span></th>
+                        <th scope="col" className="relative px-6 py-4"><span className="sr-only">{t('Действия')}</span></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -67,6 +72,6 @@ export function BikeInventoryList({ bikes, onSort, onSelect }: BikeInventoryList
             </table>
         </div>
 
-        {bikes.length === 0 && <div className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">Велосипеды не найдены. Добавьте свой первый велосипед!</div>}
+        {bikes.length === 0 && <div className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{t('Велосипеды не найдены. Добавьте свой первый велосипед!')}</div>}
     </div>;
 }

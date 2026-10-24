@@ -4,7 +4,8 @@ import {
     buildRevenueChartData,
     buildTenantSummaries,
     filterDashboardTenants,
-    getDashboardStats
+    getDashboardStats,
+    needsBikeAssignment
 } from './dashboardSelectors';
 
 const referenceDate = new Date('2026-08-23T12:00:00');
@@ -71,6 +72,25 @@ describe('dashboard selectors', () => {
 
         expect(result.map(item => item.id)).toEqual(['soon']);
         expect(tenants.map(item => item.id)).toEqual(['later', 'soon', 'archived']);
+    });
+
+    it('puts active tenants without a bike first', () => {
+        const tenants = buildTenantSummaries([
+            tenant({ id: 'overdue', name: 'Overdue', payment_charges: [{ id: 'old', due_date: '2026-01-01', amount: 100, status: 'open' }] }),
+            tenant({ id: 'no-bike', name: 'No bike', bike_id: null, next_payment_date: null }),
+            tenant({ id: 'archived-no-bike', name: 'Archived', bike_id: null, is_archived: true }),
+        ], referenceDate);
+
+        const result = filterDashboardTenants(tenants, {
+            search: '',
+            showArchived: false,
+            tenantFilter: 'all',
+            referenceDate
+        });
+
+        expect(result.map(item => item.id)).toEqual(['no-bike', 'overdue']);
+        expect(needsBikeAssignment(result[0])).toBe(true);
+        expect(needsBikeAssignment(tenants[2])).toBe(false);
     });
 
     it('counts only unapproved open charges due today', () => {

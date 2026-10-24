@@ -6,13 +6,13 @@ import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistOfflineQueryCache, restoreOfflineQueryCache, restoreSynchronousOfflineQueryCache } from './shared/lib/offlineQueryCache';
+import { I18nProvider } from './i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // показываем кэш до 5 минут без блокировки интерфейса
       gcTime: 1000 * 60 * 30, // держим посещённые страницы в памяти 30 минут
-      placeholderData: (previousData: unknown) => previousData,
       refetchOnMount: 'always',
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
@@ -32,13 +32,15 @@ function startApp() {
 
   root.render(
     <React.StrictMode>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
-      </ErrorBoundary>
+      <I18nProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </I18nProvider>
     </React.StrictMode>,
   );
 

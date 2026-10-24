@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'rent-static-v2';
+const STATIC_CACHE = 'rent-static-v3';
 const SAME_ORIGIN_ASSETS = new Set(['script', 'style', 'image', 'font']);
 
 self.addEventListener('install', (event) => {
@@ -28,14 +28,17 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
     if (request.destination === 'document') {
-        event.respondWith(caches.match(request).then((cached) => {
-            const network = fetch(request).then((response) => {
+        event.respondWith(fetch(request).then((response) => {
+            if (response.ok) {
                 const copy = response.clone();
                 void caches.open(STATIC_CACHE).then(cache => cache.put(request, copy));
-                return response;
-            });
-            return cached || network;
-        }));
+            }
+            return response;
+        }).catch(async () => (await caches.match(request)) || (await caches.match('./')) || new Response('Offline', {
+            status: 503,
+            statusText: 'Offline',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        })));
         return;
     }
 

@@ -18,10 +18,11 @@ export function slugify(value: string): string {
         .replace(/-+$/g, '');
 }
 
+export const RESERVED_SLUGS = new Set(['admin', 'bikes', 'bike', 'payments', 'tasks', 'history', 'tenant']);
+
 export function uniqueSlug(base: string, existingSlugs: Iterable<string>): string {
     // Static client routes win over /:slug, so tenant slugs must never
     // shadow them (a tenant named "Bikes" would otherwise hijack /bikes).
-    const RESERVED_SLUGS = new Set(['bikes', 'bike', 'payments', 'tasks', 'history', 'tenant']);
     const normalizedExisting = new Set(Array.from(existingSlugs, slug => slug.toLowerCase()));
     RESERVED_SLUGS.forEach(slug => normalizedExisting.add(slug));
     const cleanBase = slugify(base) || 'tenant';
